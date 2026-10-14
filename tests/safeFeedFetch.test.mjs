@@ -46,6 +46,8 @@ test('pins validated DNS address in HTTPS lookup while retaining original TLS ho
   assert.equal(response.status, 200);
   assert.equal(await response.text(), '<rss/>');
   assert.equal(seenOptions.family, 4);
+  assert.equal(seenOptions.agent, false);
+  assert.equal(seenOptions.servername, 'feeds.example.org');
   assert.equal(seenOptions.method, 'GET');
   assert.equal(seenOptions.headers.Accept, 'application/rss+xml');
   seenOptions.lookup('feeds.example.org', { family: 4 }, (error, address, family) => {

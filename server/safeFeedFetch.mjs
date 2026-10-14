@@ -54,7 +54,7 @@ export async function safeFeedFetch(input, options = {}, { resolve4 = systemReso
   if (options.signal?.aborted) throw options.signal.reason || new Error('Feed request aborted');
   return new Promise((resolve, reject) => {
     const req = request(url, {
-      method: 'GET', family: 4, signal: options.signal, headers: options.headers,
+      method: 'GET', family: 4, agent: false, servername: url.hostname, signal: options.signal, headers: options.headers,
       lookup: (_host, lookupOptions, callback) => {
         if (lookupOptions?.all) callback(null, [{ address, family: 4 }]);
         else callback(null, address, 4);
