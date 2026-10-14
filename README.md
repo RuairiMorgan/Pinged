@@ -10,7 +10,7 @@ Pinged is a personal monitoring and discovery product: describe something you ca
 - Users can review source choices and save/edit/remove alert **drafts**. Drafts are stored only in the current browser's `localStorage` and can be exported as JSON.
 - Inbox intentionally shows no fabricated results. **No** monitoring jobs, accounts, cloud sync, email/push notifications, billing, or public deployment are connected.
 - Older URL-and-keyword prototype alerts are migrated into clearly labeled drafts. An old `enabled` flag does **not** mean a monitor is running.
-- `server/monitor.mjs` contains a standalone RSS/Atom parser and keyword matcher. It is **not** wired to the UI or scheduler. It must only fetch allowlisted URLs; arbitrary URLs would introduce SSRF risk.
+- `server/monitor.mjs` contains a standalone RSS/Atom parser and keyword matcher. Server-owned exact feed URLs are enforced via `server/sourceRegistry.mjs`; redirects, oversized responses, unexpected content types and unsafe article links are rejected. Two BBC feed endpoints are **configured but unverified**; no live fetch, scheduler, persistence or notification delivery has been demonstrated. The monitor is **not** wired to the UI.
 
 ## Local development
 
@@ -28,7 +28,7 @@ npm run build
 ## Architecture and priorities
 
 1. **Experience:** accessible responsive Home / Inbox / Account shell, natural-language alert preview, truthful source capabilities, browser-local drafts.
-2. **Real monitoring:** vetted source connector contracts, verified RSS feed allowlist, server-side scheduling, persistence, deduplication, rate limits, audit trails and reliable failure reporting.
+2. **Real monitoring:** exact server-owned RSS allowlist and bounded fetching are implemented with mocked tests; next verify feeds from a networked environment, implement source-specific keywords, server-side scheduling, durable persistence, deduplication, rate limits, audit trails and reliable failure reporting.
 3. **Accounts and notifications:** authenticated storage, email/in-app delivery, per-alert notification preferences, privacy and security controls.
 4. **Quality and launch readiness:** end-to-end tests, error handling, deployment/observability, cost monitoring, accessibility checks and owner-approved launch.
 

@@ -1,3 +1,4 @@
+import { assertAllowedFeedUrl, resolveFeedUrl } from "./sourceRegistry.mjs";
 import { createHash } from "node:crypto";
 
 const MAX_BYTES = 2_000_000;
@@ -11,15 +12,64 @@ function entries(xml) {
     return { title: strip(tag(body, "title") || ""), link, summary: strip(tag(body, "description") || tag(body, "summary") || tag(body, "content") || ""), published: tag(body, "pubDate") || tag(body, "updated") || tag(body, "published") || null };
   }).filter(x => x.title && x.link);
 }
+
+function safeArticleLink(raw) {
+  try {
+    const url = new URL(raw);
+    return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password ? url.href : null;
+  } catch { return null; }
+}
+
+async function readLimited(response) {
+  const declared = Number(response.headers?.get?.("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_BYTES) throw new Error("Feed too large");
+  if (!response.body?.getReader) throw new Error("Streaming response body required");
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_BYTES) throw new Error("Feed too large");
+      chunks.push(value);
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => {});
+    throw error;
+  } finally {
+    reader.releaseLock();
+  }
+  return new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks.map(chunk => Buffer.from(chunk))));
+}
+
 export async function checkFeed(feedUrl, keyword, { seen = new Set(), fetcher = fetch } = {}) {
-  const url = new URL(feedUrl);
-  if (!["https:", "http:"].includes(url.protocol)) throw new Error("Unsupported protocol");
-  if (!keyword?.trim()) throw new Error("Keyword required");
-  // IMPORTANT: Call only with feeds from a trusted allowlist. Arbitrary URLs require SSRF protections.
-  const response = await fetcher(url, { headers: { Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml" }, signal: AbortSignal.timeout(12000) });
+  const url = assertAllowedFeedUrl(feedUrl);
+  if (typeof keyword !== "string" || !keyword.trim() || keyword.length > 200) {
+    throw new Error("Valid keyword required (1–200 characters)");
+  }
+  // No redirects: a trusted endpoint must not bounce requests to private networks.
+  const response = await fetcher(url, {
+    redirect: "manual",
+    headers: { Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml" },
+    signal: AbortSignal.timeout(12000)
+  });
+  if (response.status >= 300 && response.status < 400) throw new Error("Feed redirects are blocked");
   if (!response.ok) throw new Error("Feed request failed: " + response.status);
-  const xml = await response.text();
-  if (Buffer.byteLength(xml) > MAX_BYTES) throw new Error("Feed too large");
-  const needle = keyword.toLocaleLowerCase();
-  return entries(xml).filter(x => (x.title + " " + x.summary).toLocaleLowerCase().includes(needle)).map(x => ({ ...x, id: createHash("sha256").update(x.link).digest("hex"), keyword })).filter(x => !seen.has(x.id));
+  const type = (response.headers?.get?.("content-type") || "").toLowerCase();
+  if (type && !/^(application\/(rss\+xml|atom\+xml|xml)|text\/xml)(?:\s*;|\s*$)/.test(type)) {
+    throw new Error("Unexpected feed content type");
+  }
+  const xml = await readLimited(response);
+  const needle = keyword.trim().toLocaleLowerCase();
+  return entries(xml)
+    .map(item => ({ ...item, link: safeArticleLink(item.link) }))
+    .filter(item => item.link && (item.title + " " + item.summary).toLocaleLowerCase().includes(needle))
+    .map(item => ({ ...item, id: createHash("sha256").update(item.link).digest("hex"), keyword: keyword.trim() }))
+    .filter(item => !seen.has(item.id));
+}
+
+export function checkConfiguredSource(sourceId, keyword, options) {
+  return checkFeed(resolveFeedUrl(sourceId), keyword, options);
 }
