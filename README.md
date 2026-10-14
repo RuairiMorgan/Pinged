@@ -10,7 +10,7 @@ Pinged is a personal monitoring and discovery product: describe something you ca
 - Users can review source choices and save/edit/remove alert **drafts**. Drafts are stored only in the current browser's `localStorage` and can be exported as JSON.
 - Inbox intentionally shows no fabricated results. **No** monitoring jobs, accounts, cloud sync, email/push notifications, billing, or public deployment are connected.
 - Older URL-and-keyword prototype alerts are migrated into clearly labeled drafts. An old `enabled` flag does **not** mean a monitor is running.
-- `server/monitor.mjs` contains a standalone RSS/Atom parser and keyword matcher. It is **not** wired to the UI or scheduler. It must only fetch allowlisted URLs; arbitrary URLs would introduce SSRF risk.
+- `server/monitor.mjs` contains a server-only RSS/Atom keyword checker with an exact HTTPS source-ID allowlist (`server/feedSources.mjs`), no redirects, a 1 MB streamed response cap, MIME validation, and stable deduplication IDs. It is **not** wired to the UI, persistent storage, or a scheduler. The BBC feed URL is configured but **not live-verified**. Production needs network egress/IP safeguards against DNS rebinding, plus feed health checks.
 
 ## Local development
 
@@ -28,8 +28,12 @@ npm run build
 ## Architecture and priorities
 
 1. **Experience:** accessible responsive Home / Inbox / Account shell, natural-language alert preview, truthful source capabilities, browser-local drafts.
-2. **Real monitoring:** vetted source connector contracts, verified RSS feed allowlist, server-side scheduling, persistence, deduplication, rate limits, audit trails and reliable failure reporting.
+2. **Real monitoring:** server-side exact-URL allowlist and bounded RSS checker are implemented with mocked tests; next verify feed availability and rights, add network egress/IP protection, source-to-draft mapping, scheduling, persistence, deduplication across runs, rate limits, audit trails and reliable failure reporting.
 3. **Accounts and notifications:** authenticated storage, email/in-app delivery, per-alert notification preferences, privacy and security controls.
 4. **Quality and launch readiness:** end-to-end tests, error handling, deployment/observability, cost monitoring, accessibility checks and owner-approved launch.
 
 Do not claim a successful check, a connected source, a verified discovery, or a notification until the relevant backend action has actually succeeded. Do not spend money, enable paid services, set prices or publicly deploy without owner approval.
+
+## Server feed checker (not connected to the app)
+
+`checkFeed("bbc-news", "climate", { seen })` returns `{ sourceId, checkedAt, status, totalEntries, matches }` after a successful fetch. Unknown source IDs, including arbitrary URLs, fail **before** a request is made. Errors throw; they are never treated as an empty result. `seen` is an in-memory set supplied by the caller, not persistent deduplication. The test suite uses mocked HTTP responses: **no live feed success has been verified**. Do not expose this function as an unauthenticated arbitrary-check endpoint.
