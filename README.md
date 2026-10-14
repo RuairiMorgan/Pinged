@@ -47,3 +47,9 @@ Do not claim a successful check, a connected source, a verified discovery, or a 
 ## DNS-rebinding-resistant feed transport (not live-verified)
 
 The default `checkFeed` transport is now `server/safeFeedFetch.mjs`: it resolves the operator-configured HTTPS hostname to IPv4, rejects mixed or non-public/reserved DNS answers, and **pins** the validated IP in `https.request`'s socket lookup while retaining normal hostname-based TLS certificate verification. It rejects redirects and nonstandard ports, forwards the 12-second abort signal, and does not follow proxy environment variables. IPv6-only sources fail closed. Mock `fetcher` injection remains available for isolated checker tests. This reduces DNS-rebinding SSRF risk but is **not** a substitute for production egress firewall rules, isolated worker permissions, DNS and TLS integration tests, or verified feed availability. No real source was contacted during this change.
+
+## Opt-in polling scheduler (not running)
+
+`server/scheduler.mjs` provides `createPollingScheduler({ alerts, store })` for an operator-controlled host to explicitly call `start()` or `runDue()`. Only 1–25 configured alerts with allowlisted source IDs are accepted. The minimum interval is 15 minutes and maximum is 24 hours. Overlapping ticks share one run; failed checks use bounded exponential backoff. `stop()` prevents future ticks but does not abort in-flight checks. Unexpected storage failures are reported as **not persisted**.
+
+**Limits:** retry counters and next-run times are in-memory only, and the local file store is single-process only. No host currently starts the scheduler, and the UI is not connected. The BBC source is still configured but unverified. There is no production queue, account authentication, live delivery, notification service or deployment. Six mock-poller tests cover scheduling behavior; no real feed was contacted.

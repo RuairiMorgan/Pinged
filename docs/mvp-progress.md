@@ -44,3 +44,7 @@
 **Verification:** six new Node 22.16.0 tests passed locally (`node --test tests/safeFeedFetch.test.mjs`); initial test assertion/fixture failures were corrected before commit. The full repository test suite, Vite build, live HTTPS feed availability and browser experience were not verified in this run.
 
 **Remaining blockers:** live source verification, infrastructure egress rules, authenticated API, scheduler, draft-to-monitor activation, notifications and end-to-end QA. No deployment.
+
+## 2026-10-14 — Opt-in scheduler prototype
+
+Added bounded, operator-configured polling scheduler with explicit start/stop, 15-minute minimum interval, no overlapping runs and exponential error backoff. Six isolated Node.js tests passed using mocked pollers and fake clocks. No real feed, full build or browser testing was performed. Scheduler is not running, is not connected to the UI, and keeps timing state in memory. Next: verify source availability, add authenticated backend and durable scheduling.
