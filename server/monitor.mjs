@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { getFeedSource } from "./feedSources.mjs";
+import { safeFeedFetch } from "./safeFeedFetch.mjs";
 
 const MAX_BYTES = 1_000_000;
 const MAX_KEYWORD_LENGTH = 120;
@@ -60,8 +61,8 @@ async function readLimitedBody(response) {
 }
 
 // Only the server-side source ID is accepted. No user-provided URL is ever fetched.
-// Redirects are rejected. Production also requires network egress/IP controls against DNS rebinding.
-export async function checkFeed(sourceId, keyword, { seen = new Set(), fetcher = fetch, timeoutMs = 12000, now = () => new Date() } = {}) {
+// Redirects are rejected. The default transport pins DNS-validated public IPv4 addresses to the HTTPS socket.
+export async function checkFeed(sourceId, keyword, { seen = new Set(), fetcher = safeFeedFetch, timeoutMs = 12000, now = () => new Date() } = {}) {
   const source = getFeedSource(sourceId);
   if (typeof keyword !== "string" || !keyword.trim() || keyword.length > MAX_KEYWORD_LENGTH) {
     throw new Error("Keyword must be 1–120 characters");

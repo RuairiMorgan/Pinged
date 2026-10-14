@@ -34,3 +34,13 @@
 **Verification:** five new tests passed under Node.js 22.16.0 in an isolated directory with an injected checker and a stub import for `server/monitor.mjs`. Existing repository tests, full Vite build, live feed requests and browser checks were **not** rerun in this pass.
 
 **Limitations:** single process only; no scheduler, source verification, IP/DNS egress controls, authenticated API, UI wiring, cloud persistence or notifications. No public deployment.
+
+## 2026-10-14 — Pinned HTTPS feed transport security increment
+
+- Added `server/safeFeedFetch.mjs` as the default transport for allowlisted feed checks, pinning DNS-validated public IPv4 addresses to the HTTPS socket while preserving original-host TLS verification.
+- Rejected unsafe/reserved/mixed DNS answers, literal IP hostnames, non-HTTPS URLs, credentials, nonstandard ports, fragments and redirects. IPv6-only sources fail closed; the request abort signal also covers DNS resolution.
+- Added six focused transport tests for IP filtering, DNS failure, request policy, pinned lookup, redirects and abort behavior.
+
+**Verification:** six new Node 22.16.0 tests passed locally (`node --test tests/safeFeedFetch.test.mjs`); initial test assertion/fixture failures were corrected before commit. The full repository test suite, Vite build, live HTTPS feed availability and browser experience were not verified in this run.
+
+**Remaining blockers:** live source verification, infrastructure egress rules, authenticated API, scheduler, draft-to-monitor activation, notifications and end-to-end QA. No deployment.
