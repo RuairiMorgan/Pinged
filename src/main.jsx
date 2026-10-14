@@ -23,7 +23,7 @@ function App() {
   }
   return <main>
     <header><strong>◉ Pinged</strong><span>Never miss what matters.</span></header>
-    <section className="hero"><p className="eyebrow">YOUR PERSONAL WATCHLIST</p><h1>Stay in the know.</h1><p>Choose a website and a keyword. Pinged will help you organize what matters.</p></section>
+    <section className="hero"><p className="eyebrow">YOUR PERSONAL WATCHLIST</p><h1>What would you like to stay updated on?</h1><p>Tell us what you’re interested in. We’ll keep you updated.</p></section>
     <section className="panel"><h2>Create an alert</h2><form onSubmit={add}>
       <label>Website URL<input required type="text" value={url} onChange={e=>setUrl(e.target.value)} placeholder="example.com/news" /></label>
       <label>Keyword or phrase<input required value={keyword} onChange={e=>setKeyword(e.target.value)} placeholder="e.g. Pokémon" /></label>
