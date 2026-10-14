@@ -60,3 +60,19 @@ test("rejects streamed body over the limit without treating it as an empty resul
   const huge = `<rss><item><title>news</title><link>https://example.org</link></item>${" ".repeat(1_000_001)}</rss>`;
   await assert.rejects(checkFeed("bbc-news", "news", { fetcher: async () => feedResponse(huge) }), /too large/);
 });
+
+
+test("rejects invalid feed envelopes instead of reporting zero discoveries", async () => {
+  const invalid = [
+    "<html><body>Service unavailable</body></html>",
+    "<rss><channel><item><title>Climate</title></channel></rss>",
+    "<!DOCTYPE rss><rss><channel></channel></rss>",
+    "<feed><!ENTITY unsafe \"value\"><entry></entry></feed>"
+  ];
+  for (const xml of invalid) {
+    await assert.rejects(
+      checkFeed("bbc-news", "climate", { fetcher: async () => feedResponse(xml) }),
+      /envelope|Unbalanced|declarations/
+    );
+  }
+});

@@ -10,7 +10,7 @@ Pinged is a personal monitoring and discovery product: describe something you ca
 - Users can review source choices and save/edit/remove alert **drafts**. Drafts are stored only in the current browser's `localStorage` and can be exported as JSON.
 - Inbox intentionally shows no fabricated results. **No** monitoring jobs, accounts, cloud sync, email/push notifications, billing, or public deployment are connected.
 - Older URL-and-keyword prototype alerts are migrated into clearly labeled drafts. An old `enabled` flag does **not** mean a monitor is running.
-- `server/monitor.mjs` contains a server-only RSS/Atom keyword checker with an exact HTTPS source-ID allowlist (`server/feedSources.mjs`), no redirects, a 1 MB streamed response cap, MIME validation, and stable deduplication IDs. It is **not** wired to the UI, persistent storage, or a scheduler. The BBC feed URL is configured but **not live-verified**. The default HTTPS transport now pins DNS-validated public IPv4 addresses; production still needs network-level egress policy, live source verification and feed health checks.
+- `server/monitor.mjs` contains a server-only RSS/Atom keyword checker with an exact HTTPS source-ID allowlist (`server/feedSources.mjs`), no redirects, a 1 MB streamed response cap, MIME and RSS/Atom envelope validation, and stable deduplication IDs. It is **not** wired to the UI, persistent storage, or a scheduler. The BBC feed URL is configured but **not live-verified**. The default HTTPS transport now pins DNS-validated public IPv4 addresses; production still needs network-level egress policy, live source verification and feed health checks.
 
 ## Local development
 
@@ -54,6 +54,6 @@ The default `checkFeed` transport is now `server/safeFeedFetch.mjs`: it resolves
 
 **Limits:** retry counters and next-run times are in-memory only, and the local file store is single-process only. No host currently starts the scheduler, and the UI is not connected. The BBC source is still configured but unverified. There is no production queue, account authentication, live delivery, notification service or deployment. Six mock-poller tests cover scheduling behavior; no real feed was contacted.
 
-## Feed envelope validator (not integrated)
+## Feed envelope validator (integrated, not a full XML parser)
 
-`server/feedEnvelope.mjs` is a conservative RSS 2.0 / Atom envelope validation utility. It rejects mislabeled HTML, DTD/entity declarations, and unbalanced item/entry tags. This utility is **not yet called by `checkFeed`** and does not verify full XML correctness. A production XML parser and integration are still needed. The configured BBC source remains unverified; no live checks or notifications run.
+`checkFeed` now invokes `server/feedEnvelope.mjs` after bounded response reading and before entry extraction. The conservative RSS 2.0 / Atom envelope check rejects mislabeled HTML, DTD/entity declarations, and unbalanced item/entry tags as **errors**, not as a successful zero-match check. It does **not** verify full XML correctness or replace a production-grade, hardened XML parser. Tests use injected responses; the BBC source remains unverified and no live checks or notifications run.

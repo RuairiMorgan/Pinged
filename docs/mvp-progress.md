@@ -54,3 +54,12 @@ Added bounded, operator-configured polling scheduler with explicit start/stop, 1
 Added `server/feedEnvelope.mjs`, a conservative RSS 2.0 / Atom envelope validator, with five isolated Node tests. It recognizes expected feed shapes and rejects mislabeled HTML, XML declarations for DTD/entities, and unbalanced item/entry tags. **This is a staged utility, not yet integrated into `checkFeed`**: the existing monitoring behavior is unchanged. The connector blocked writing the modified `server/monitor.mjs`, so the integration was intentionally not claimed. The validator is not a standards-compliant XML parser.
 
 **Verification:** five isolated Node.js 22.16.0 unit tests passed; module syntax check passed. No live source request, complete repository test suite, Vite build, browser QA, or deployment was performed. Next: integrate the validator, rerun the entire monitoring suite, verify the configured feed live, and connect scheduler persistence.
+
+
+## 2026-10-15 — Integrate conservative feed envelope validation
+
+- Wired `validateFeedEnvelope(xml)` into `checkFeed` after the bounded body read and before item extraction.
+- Added a checker-level regression test to reject HTML disguised as XML, unbalanced item tags and DTD/entity declarations rather than returning a successful empty discovery list.
+- Preserved existing allowlist, HTTPS transport, persistence and scheduler behavior. No monitoring service was started.
+
+**Verification:** Source-level integration and test fixtures reviewed; the new end-to-end checker test has **not** been executed in this connector-only change. The previous five validator unit tests passed in the preceding run, but the complete suite, Vite build, browser QA and live feed availability remain unverified. Next: execute all Node tests in a local checkout, verify an approved live feed, then wire scheduler results to an authenticated backend.

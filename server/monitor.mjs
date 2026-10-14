@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { getFeedSource } from "./feedSources.mjs";
 import { safeFeedFetch } from "./safeFeedFetch.mjs";
+import { validateFeedEnvelope } from "./feedEnvelope.mjs";
 
 const MAX_BYTES = 1_000_000;
 const MAX_KEYWORD_LENGTH = 120;
@@ -77,6 +78,9 @@ export async function checkFeed(sourceId, keyword, { seen = new Set(), fetcher =
   if (!response.ok) throw new Error(`Feed request failed: ${response.status}`);
   if (!XML_TYPE.test(response.headers.get("content-type") || "")) throw new Error("Unexpected feed content type");
   const xml = await readLimitedBody(response);
+  // Reject mislabeled HTML, unsupported declarations and malformed feed envelopes before parsing items.
+  // This conservative check is not a substitute for a standards-compliant XML parser.
+  validateFeedEnvelope(xml);
   const items = entries(xml);
   const needle = keyword.trim().toLocaleLowerCase();
   const inBatch = new Set();
