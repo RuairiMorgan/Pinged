@@ -48,3 +48,9 @@
 ## 2026-10-14 — Opt-in scheduler prototype
 
 Added bounded, operator-configured polling scheduler with explicit start/stop, 15-minute minimum interval, no overlapping runs and exponential error backoff. Six isolated Node.js tests passed using mocked pollers and fake clocks. No real feed, full build or browser testing was performed. Scheduler is not running, is not connected to the UI, and keeps timing state in memory. Next: verify source availability, add authenticated backend and durable scheduling.
+
+## 2026-10-15 — Feed envelope validator staged
+
+Added `server/feedEnvelope.mjs`, a conservative RSS 2.0 / Atom envelope validator, with five isolated Node tests. It recognizes expected feed shapes and rejects mislabeled HTML, XML declarations for DTD/entities, and unbalanced item/entry tags. **This is a staged utility, not yet integrated into `checkFeed`**: the existing monitoring behavior is unchanged. The connector blocked writing the modified `server/monitor.mjs`, so the integration was intentionally not claimed. The validator is not a standards-compliant XML parser.
+
+**Verification:** five isolated Node.js 22.16.0 unit tests passed; module syntax check passed. No live source request, complete repository test suite, Vite build, browser QA, or deployment was performed. Next: integrate the validator, rerun the entire monitoring suite, verify the configured feed live, and connect scheduler persistence.

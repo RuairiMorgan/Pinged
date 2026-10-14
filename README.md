@@ -53,3 +53,7 @@ The default `checkFeed` transport is now `server/safeFeedFetch.mjs`: it resolves
 `server/scheduler.mjs` provides `createPollingScheduler({ alerts, store })` for an operator-controlled host to explicitly call `start()` or `runDue()`. Only 1–25 configured alerts with allowlisted source IDs are accepted. The minimum interval is 15 minutes and maximum is 24 hours. Overlapping ticks share one run; failed checks use bounded exponential backoff. `stop()` prevents future ticks but does not abort in-flight checks. Unexpected storage failures are reported as **not persisted**.
 
 **Limits:** retry counters and next-run times are in-memory only, and the local file store is single-process only. No host currently starts the scheduler, and the UI is not connected. The BBC source is still configured but unverified. There is no production queue, account authentication, live delivery, notification service or deployment. Six mock-poller tests cover scheduling behavior; no real feed was contacted.
+
+## Feed envelope validator (not integrated)
+
+`server/feedEnvelope.mjs` is a conservative RSS 2.0 / Atom envelope validation utility. It rejects mislabeled HTML, DTD/entity declarations, and unbalanced item/entry tags. This utility is **not yet called by `checkFeed`** and does not verify full XML correctness. A production XML parser and integration are still needed. The configured BBC source remains unverified; no live checks or notifications run.
