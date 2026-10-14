@@ -37,3 +37,9 @@ Do not claim a successful check, a connected source, a verified discovery, or a 
 ## Server feed checker (not connected to the app)
 
 `checkFeed("bbc-news", "climate", { seen })` returns `{ sourceId, checkedAt, status, totalEntries, matches }` after a successful fetch. Unknown source IDs, including arbitrary URLs, fail **before** a request is made. Errors throw; they are never treated as an empty result. `seen` is an in-memory set supplied by the caller, not persistent deduplication. The test suite uses mocked HTTP responses: **no live feed success has been verified**. Do not expose this function as an unauthenticated arbitrary-check endpoint.
+
+## Durable local polling prototype (not scheduled)
+
+`server/polling.mjs` adds `FilePollStore` and `pollAlert({ alertId, sourceId, keyword, store })`. Successful checks persist deduplicated discoveries and last-check metadata; failed checks persist an explicit error status without deleting earlier discoveries. The file is written through an atomic temporary-file rename with restrictive permissions, and read-modify-write operations are serialized **only within one store instance/process**. Keep state files out of version control (the `data/` directory is ignored).
+
+**Limits:** only configured source IDs are allowed; 2,000 seen IDs and 100 inbox items are retained per alert. Evicted old IDs may be rediscovered. There is no cross-process locking, database, authentication, scheduling, notification delivery, DNS/IP egress protection or UI bridge. The BBC source remains unverified; no real monitoring service is running. Do not run multiple server processes against the same state file. Production needs an authenticated database-backed job queue, durable deduplication, retention controls, and network egress restrictions.

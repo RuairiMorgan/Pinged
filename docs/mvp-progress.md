@@ -23,3 +23,14 @@
 **Verification:** six new tests passed using Node.js 22.16.0 (`node --test tests/monitor.test.mjs`) in an isolated local test directory. The previous ten frontend/planner tests were not rerun in this pass. No live network feed, full Vite build, or browser workflow was verified.
 
 **Remaining blockers:** source is not live-verified; no DNS/IP egress filtering, scheduler, persistent seen IDs, UI/backend bridge or notifications. No deployment.
+
+## 2026-10-14 — Durable single-process polling prototype
+
+- Added `FilePollStore` for atomic local JSON state writes, serialized in-process transactions and fail-closed corrupt-state handling.
+- Added `pollAlert` that accepts only allowlisted source IDs, retains discoveries and deduplicates across process restarts, preserves historical inbox entries on check failure and records truthful last-check statuses.
+- Bounded retained seen IDs (2,000) and inbox entries (100), rejected unsafe alert IDs and configuration mutation under the same alert ID.
+- Added five isolated mocked-checker tests; `data/` is gitignored.
+
+**Verification:** five new tests passed under Node.js 22.16.0 in an isolated directory with an injected checker and a stub import for `server/monitor.mjs`. Existing repository tests, full Vite build, live feed requests and browser checks were **not** rerun in this pass.
+
+**Limitations:** single process only; no scheduler, source verification, IP/DNS egress controls, authenticated API, UI wiring, cloud persistence or notifications. No public deployment.
