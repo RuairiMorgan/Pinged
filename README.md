@@ -57,3 +57,25 @@ The default `checkFeed` transport is now `server/safeFeedFetch.mjs`: it resolves
 ## Feed envelope validator (integrated, not a full XML parser)
 
 `checkFeed` now invokes `server/feedEnvelope.mjs` after bounded response reading and before entry extraction. The conservative RSS 2.0 / Atom envelope check rejects mislabeled HTML, DTD/entity declarations, and unbalanced item/entry tags as **errors**, not as a successful zero-match check. It does **not** verify full XML correctness or replace a production-grade, hardened XML parser. Tests use injected responses; the BBC source remains unverified and no live checks or notifications run.
+
+## Connected local dashboard — October 15
+
+The `mvp-connected-dashboard-20261015` branch adds a **single-owner loopback preview** connecting the RSS checker to durable Pings and the dashboard. It is not a hosted multi-user MVP.
+
+```sh
+npm ci
+npm test
+npm run build
+npm start
+# Open http://127.0.0.1:8787
+```
+
+For frontend development, run `npm start` alongside `npm run dev`; Vite proxies `/api` to loopback port 8787. The API binds only to `127.0.0.1`, checks Host/Origin and requires a custom browser header. These are local-browser protections, **not production authentication**. Do not expose through a public reverse proxy or shared host.
+
+- Saved ideas remain unlimited browser-local drafts. Set up monitoring asks for an exact keyword and supported source before activation. The planner's price/grade filters are not applied to RSS.
+- Three active Pings are enforced transactionally, including concurrent create and resume. Paused monitors retain discoveries. Up to three configured sources per Ping are accepted, but only BBC RSS is currently configured.
+- The service checks due Pings every 30 seconds, with at least 15 minutes between source checks. Next-run times and failure backoff persist. Only one server/store instance may write the JSON file.
+- Discoveries reach a silent inbox with folders, save and useful/not-useful feedback. Feedback never rewrites criteria. Up to 100 discoveries and 2,000 deduplication IDs per Ping are retained; old evicted IDs can recur. This bounded local retention is provisional, not approved pricing/tier policy.
+- Push/email are explicitly unavailable; accounts, learning, billing, production storage, other marketplace/news integrations, browser QA and deployment are still pending.
+
+See `docs/product-decisions.md` for the owner-approved product contract and release gates. Earlier sections describe staged development; this section supersedes statements that the checker has no local UI bridge.

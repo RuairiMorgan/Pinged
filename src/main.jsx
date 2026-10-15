@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { buildSearchPlan } from "./searchPlanner.js";
 import { createDraft, normalizeAlerts, sourceReadiness, STORAGE_KEY, LEGACY_STORAGE_KEY } from "./alertDrafts.js";
 import "./style.css";
+import LivePings from "./LivePings.jsx";
 
 const EXAMPLES = [
   { label: "Collectibles", prompt: "Find 1996 Japanese Pikachu PSA 10 cards under $500", icon: "✦" },
@@ -31,6 +32,7 @@ function Arrow({ direction = "right" }) {
 
 function App() {
   const [tab, setTab] = useState("home");
+  const [monitoringDraft, setMonitoringDraft] = useState(null);
   const [alerts, setAlerts] = useState(loadAlerts);
   const [query, setQuery] = useState("");
   const [preview, setPreview] = useState(null);
@@ -117,6 +119,7 @@ function App() {
 
     <main id="main-content" className="main-content">
       {notice && <p className="notice" role="status">{notice}<button type="button" onClick={() => setNotice("")} aria-label="Dismiss notice">×</button></p>}
+      {tab === "inbox" && <LivePings tab={tab} />}
       {tab === "home" && <>
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-kicker"><span className="kicker-line" /> THE THINGS THAT MATTER, ALL IN ONE PLACE</div>
@@ -141,19 +144,21 @@ function App() {
         </section>}
         {!preview && error && <p className="error standalone-error" role="alert">{error}</p>}
 
+        <LivePings tab={tab} draft={monitoringDraft} />
+
         <section className="explore-section" aria-labelledby="explore-heading"><div className="section-heading"><div><span className="eyebrow">A LITTLE INSPIRATION</span><h2 id="explore-heading">Discover what Pinged can do</h2></div><span className="muted-label">Try an example <Arrow /></span></div><div className="example-grid">{EXAMPLES.map(example => <button key={example.label} type="button" className="example-card" onClick={() => { setQuery(example.prompt); setPreview(null); setEditingId(null); setError(""); window.scrollTo({ top: 0, behavior: "smooth" }); }}><span className="example-icon" aria-hidden="true">{example.icon}</span><span className="example-category">{example.label}</span><strong>{example.prompt}</strong><span className="example-cta">Use this idea <Arrow /></span></button>)}</div></section>
 
-        <section className="alerts-section" aria-labelledby="alerts-heading"><div className="section-heading"><div><span className="eyebrow">YOUR SPACE</span><h2 id="alerts-heading">Your alerts <span className="count-badge">{alerts.length}</span></h2></div><span className="muted-label">Saved on this device</span></div>
-          {alerts.length === 0 ? <div className="empty-card"><span className="empty-icon" aria-hidden="true">◎</span><h3>A little quiet here. For now.</h3><p>Describe something above to save your first alert draft.</p></div> : <div className="alert-list">{alerts.map(alert => <article className="alert-card" key={alert.id}><div className="alert-card-top"><span className="draft-badge"><span className="tiny-dot" /> Draft · not monitoring</span><span className="alert-category">{alert.category || "General"}</span></div><h3>{alert.request}</h3><p className="alert-sources">{alert.sources.length ? alert.sources.map(source => source.name).join(" · ") : "No sources selected"}</p><div className="alert-card-bottom"><details><summary>Details</summary><p>Monitoring is not connected. No checks have run for this draft.</p><p>Suggested sources: {alert.sources.length ? alert.sources.map(source => `${source.name} (${sourceReadiness(source)})`).join("; ") : "none"}.</p></details><div className="card-actions"><button type="button" className="text-button" onClick={() => editDraft(alert)}>Edit</button><button type="button" className="text-button danger" onClick={() => removeDraft(alert.id)} aria-label={`Remove alert ${alert.request}`}>Remove</button></div></div></article>)}</div>}
+        <section className="alerts-section" aria-labelledby="alerts-heading"><div className="section-heading"><div><span className="eyebrow">YOUR SPACE</span><h2 id="alerts-heading">Saved ideas <span className="count-badge">{alerts.length}</span></h2></div><span className="muted-label">Saved on this device</span></div>
+          {alerts.length === 0 ? <div className="empty-card"><span className="empty-icon" aria-hidden="true">◎</span><h3>A little quiet here. For now.</h3><p>Describe something above to save your first alert draft.</p></div> : <div className="alert-list">{alerts.map(alert => <article className="alert-card" key={alert.id}><div className="alert-card-top"><span className="draft-badge"><span className="tiny-dot" /> Draft · not monitoring</span><span className="alert-category">{alert.category || "General"}</span></div><h3>{alert.request}</h3><p className="alert-sources">{alert.sources.length ? alert.sources.map(source => source.name).join(" · ") : "No sources selected"}</p><div className="alert-card-bottom"><details><summary>Details</summary><p>Monitoring is not connected. No checks have run for this draft.</p><p>Suggested sources: {alert.sources.length ? alert.sources.map(source => `${source.name} (${sourceReadiness(source)})`).join("; ") : "none"}.</p></details><div className="card-actions"><button type="button" className="text-button" onClick={() => { setMonitoringDraft(alert); document.getElementById("monitor-setup")?.scrollIntoView({ behavior: "smooth", block: "center" }); }}>Set up monitoring</button><button type="button" className="text-button" onClick={() => editDraft(alert)}>Edit</button><button type="button" className="text-button danger" onClick={() => removeDraft(alert.id)} aria-label={`Remove alert ${alert.request}`}>Remove</button></div></div></article>)}</div>}
         </section>
       </>}
 
-      {tab === "inbox" && <section className="tab-page"><span className="eyebrow">ALL IN ONE PLACE</span><h1>Your inbox<span className="brand-period">.</span></h1><p className="tab-intro">The discoveries that matter to you, without the noise.</p><div className="empty-card large"><span className="empty-icon" aria-hidden="true">✉</span><h2>No discoveries yet</h2><p>Your saved alerts are drafts. Real monitoring and notifications aren't connected yet, so there are no results to show.</p><button className="secondary-button" type="button" onClick={() => setTab("home")}>Explore alerts <Arrow /></button></div></section>}
+
 
       {tab === "account" && <section className="tab-page"><span className="eyebrow">YOUR PINGED</span><h1>Account<span className="brand-period">.</span></h1><p className="tab-intro">A simple, transparent place for your preferences.</p><div className="account-grid"><div className="account-card"><span className="account-icon" aria-hidden="true">⌂</span><h2>Local preview</h2><p>Accounts and cloud sync aren't available yet. Your {alerts.length} alert {alerts.length === 1 ? "draft is" : "drafts are"} saved only in this browser.</p><span className="status-label">No account connected</span></div><div className="account-card"><span className="account-icon" aria-hidden="true">↓</span><h2>Your data, your control</h2><p>Download a copy of your saved alert drafts. No monitoring data has been collected.</p><button className="secondary-button" type="button" onClick={exportDrafts} disabled={!alerts.length}>Export my drafts <Arrow /></button></div></div></section>}
     </main>
 
-    <footer className="site-footer"><div><Logo /><p>Stay close to what matters.</p></div><span>Preview only · No live monitoring or notifications</span></footer>
+    <footer className="site-footer"><div><Logo /><p>Stay close to what matters.</p></div><span>Local preview · Silent RSS inbox · Push and accounts pending</span></footer>
     <nav className="mobile-nav" aria-label="Mobile navigation">{[["home", "⌂", "Home"], ["inbox", "✉", "Inbox"], ["account", "◎", "Account"]].map(([id, icon, label]) => <button key={id} type="button" aria-current={tab === id ? "page" : undefined} onClick={() => { setTab(id); window.scrollTo({ top: 0, behavior: "smooth" }); }}><span aria-hidden="true">{icon}</span>{label}</button>)}</nav>
   </div>;
 }

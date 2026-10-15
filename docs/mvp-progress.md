@@ -63,3 +63,33 @@ Added `server/feedEnvelope.mjs`, a conservative RSS 2.0 / Atom envelope validato
 - Preserved existing allowlist, HTTPS transport, persistence and scheduler behavior. No monitoring service was started.
 
 **Verification:** Node.js 22.16.0 syntax checks passed for the integrated checker and validator in an isolated local reproduction. Four focused Node tests passed using injected RSS/Atom responses, including malformed-envelope rejection. The isolated reproduction used a stub HTTPS transport and was manually reconstructed from the committed source; it is **not** a complete repository checkout or proof that the committed GitHub test suite passes. The previous five validator unit tests passed in the preceding run. The complete repository suite, Vite build, browser QA and live feed availability remain unverified. Next: execute all Node tests in a local checkout, verify an approved live feed, then wire scheduler results to an authenticated backend.
+
+## 2026-10-15 — Consolidated local monitoring/dashboard path
+
+Branch `mvp-connected-dashboard-20261015` starts from the full feed-envelope branch, preserving that dashboard and all server security work. Main's three-active-Ping requirement is implemented transactionally in the new service rather than copying its older URL-only UI.
+
+- Recovered product decisions in `docs/product-decisions.md`, including free 3 active / 3 sources, unlimited saved ideas, silent/push choice, no advertising, restrained Pro, optional reviewable learning and accepted experience backlog.
+- Added loopback-only HTTP API and dashboard integration: explicit exact-keyword setup, persistent active Pings, pause/resume/remove, truthful source health, silent inbox folders, saved discoveries and useful/not-useful feedback. Saved-idea setup preserves the original request and asks for exact RSS matching criteria; unsupported filters are disclosed.
+- Enforced active limits in serialized storage transactions (including concurrent creates and resume), source allowlist and unavailable-delivery rejection. No arbitrary URL fetching endpoint.
+- Durable due times and exponential backoff survive restart; checks do not hold the store transaction during network I/O, and pause/delete during a fetch discards that arrival. Local retention is bounded and disclosed.
+- Preserved minimal teal design and approved headline. Added lockfile for reproducible dependency installation.
+
+**Verification:** complete checkout test suite passes (46 tests), including real loopback HTTP API integration, restart deduplication, concurrency/limit enforcement, pause during fetch, failure/backoff persistence and HTTP → actual RSS parser → persistent inbox with injected feed bytes. `npm run build` passes with Vite 5.4.21. `git diff --check` passes. A real BBC feed attempt failed at DNS (`queryA ECONNREFUSED feeds.bbci.co.uk`), so source availability remains unverified. Browser visual/interaction QA was not available; no public deployment, production accounts, push or email delivered.
+
+**Next:** verify the source and UI in a permitted runtime, add production account-isolated database storage/job scheduling and genuine push/email, integrate supported marketplace/source APIs, complete remaining accepted experience controls and deployment QA. Do not present the local service as a finished MVP.
+
+### Stable MVP progress rubric
+
+Estimate progress against these release outcomes; preserve weights between updates. Percentages reflect acceptance evidence, not files or commits. Initial estimate for this increment: **30%**, with substantial uncertainty until live/browser testing.
+
+| Outcome | Weight | Evidence credit |
+| --- | ---: | ---: |
+| Responsive approved dashboard and creation/review experience | 15 | 10 |
+| Supported-source coverage and exact verified matching | 15 | 3 |
+| Persistent scheduling, deduplication, pause and recovery | 15 | 10 |
+| Accounts, user isolation and production data controls | 15 | 0 |
+| Inbox, folders and genuine notification delivery | 15 | 5 |
+| Free/Pro entitlements and restrained upgrade experience | 10 | 2 |
+| Suggestions, preference controls and agreed discovery experience | 5 | 0 |
+| Live/browser QA, deployment and operational readiness | 10 | 0 |
+| Total | 100 | 30 |
