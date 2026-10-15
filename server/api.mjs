@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { FilePollStore } from './polling.mjs';
 import { createPingService } from './service.mjs';
 import { createAccounts, readSessionCookie, sessionCookie } from './accounts.mjs';
+import { pushSessionKey } from './push.mjs';
 
 const json = (res, status, value) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }); res.end(JSON.stringify(value)); };
 async function body(req) {
@@ -38,6 +39,7 @@ export function createApiServer({ service, accounts, dist = resolve('dist'), all
           res.setHeader('Set-Cookie', sessionCookie(result.token));
           return json(res, 200, { user: result.user });
         }
+        if (accounts && req.headers['x-pinged-account'] && req.headers['x-pinged-account'] !== user?.id) return json(res, 409, { error: 'The signed-in account changed. Reload your workspace.', code: 'account_changed' });
         if (accounts && req.method === 'POST' && url.pathname === '/api/logout') {
           await accounts.logout(token);
           res.setHeader('Set-Cookie', sessionCookie(''));
@@ -45,6 +47,8 @@ export function createApiServer({ service, accounts, dist = resolve('dist'), all
         }
         if (accounts && !user) return json(res, 401, { error: 'Sign in to continue.' });
         const currentService = accounts ? accounts.serviceFor(user) : service;
+        if (accounts && url.pathname === '/api/push/subscription' && req.method === 'POST') return json(res, 200, await currentService.push.subscribe(await body(req), pushSessionKey(token)));
+        if (accounts && url.pathname === '/api/push/subscription' && req.method === 'DELETE') { await currentService.push.unsubscribe(pushSessionKey(token)); return json(res, 200, { ok: true }); }
         if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, await currentService.snapshot());
         if (req.method === 'POST' && url.pathname === '/api/pings') return json(res, 201, await currentService.create(await body(req)));
         const match = url.pathname.match(/^\/api\/pings\/([a-zA-Z0-9-]+)(?:\/(feedback))?$/);
@@ -60,14 +64,15 @@ export function createApiServer({ service, accounts, dist = resolve('dist'), all
       if (!path.startsWith(dist + '/')) return json(res, 404, { error: 'Not found' });
       let data;
       try { data = await readFile(path); } catch { return json(res, 404, { error: 'Build the dashboard with npm run build first.' }); }
-      res.writeHead(200, { 'Content-Type': ({ '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css' })[extname(path)] || 'application/octet-stream', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' });
+      res.writeHead(200, { 'Content-Type': ({ '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css' })[extname(path)] || 'application/octet-stream', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', ...(pathname === '/sw.js' ? { 'Cache-Control': 'no-cache', 'Service-Worker-Allowed': '/' } : {}) });
       res.end(data);
     } catch (error) { json(res, error.status || 500, { error: error.status ? error.message : 'Could not complete this action. Your existing data has been kept.' }); }
   });
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const accounts = process.env.PINGED_ACCOUNTS === '1' ? createAccounts({ directory: resolve('data') }) : null;
+  const pushConfig = process.env.PINGED_VAPID_PUBLIC_KEY && process.env.PINGED_VAPID_PRIVATE_KEY && process.env.PINGED_VAPID_SUBJECT ? { publicKey: process.env.PINGED_VAPID_PUBLIC_KEY, privateKey: process.env.PINGED_VAPID_PRIVATE_KEY, subject: process.env.PINGED_VAPID_SUBJECT } : undefined;
+  const accounts = process.env.PINGED_ACCOUNTS === '1' ? createAccounts({ directory: resolve('data'), pushConfig }) : null;
   const service = accounts || createPingService({ store: new FilePollStore(resolve('data/pinged.json')) });
   const server = createApiServer(accounts ? { accounts } : { service });
   server.listen(8787, '127.0.0.1', () => {

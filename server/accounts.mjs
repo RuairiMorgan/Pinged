@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import { resolve } from 'node:path';
 import { FilePollStore } from './polling.mjs';
 import { createPingService } from './service.mjs';
+import { pushSessionKey, createPushSender } from './push.mjs';
 
 const scrypt = promisify(deriveKey);
 const hashToken = token => createHash('sha256').update(token).digest('hex');
@@ -11,8 +12,9 @@ const SESSION_AGE = 7 * 24 * 60 * 60_000;
 export const SESSION_COOKIE = 'pinged_session';
 
 // Opt-in local accounts. One process owns all stores; not a hosted identity provider.
-export function createAccounts({ directory, store = new FilePollStore(resolve(directory, 'accounts.json')), now = Date.now, checker } = {}) {
+export function createAccounts({ directory, store = new FilePollStore(resolve(directory, 'accounts.json')), now = Date.now, checker, pushConfig, pushSender } = {}) {
   const services = new Map(), attempts = new Map();
+  const deliverPush = pushConfig ? pushSender || createPushSender(pushConfig) : undefined;
   let hashing = 0;
   async function passwordKey(password, salt) {
     if (hashing >= 4) reject('Sign-in is busy. Try again shortly.', 429);
@@ -68,19 +70,25 @@ export function createAccounts({ directory, store = new FilePollStore(resolve(di
   }
   async function logout(token) {
     if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) return;
+    const user = await authenticate(token);
+    if (user) await serviceFor(user).push.unsubscribe(pushSessionKey(token));
     const hashed = hashToken(token);
     await store.transaction(state => { for (const user of state.users || []) user.sessions = user.sessions.filter(s => s.hash !== hashed && s.expiresAt > now()); });
   }
   function serviceFor(user) {
     // Never construct a path from a client-supplied account identifier.
     if (!user || !/^[0-9a-f-]{36}$/.test(user.id)) throw new Error('Invalid account');
-    if (!services.has(user.id)) services.set(user.id, createPingService({ store: new FilePollStore(resolve(directory, 'users', user.id + '.json')), now, checker }));
+    if (!services.has(user.id)) services.set(user.id, createPingService({ store: new FilePollStore(resolve(directory, 'users', user.id + '.json')), now, checker, pushConfig, pushSender: deliverPush, pushOwner: user.id }));
     return services.get(user.id);
   }
   async function runDue() {
     const results = [];
     for (const user of (await store.read()).users || []) {
-      try { results.push({ userId: user.id, results: await serviceFor(user).runDue() }); }
+      try {
+        const service = serviceFor(user);
+        await service.push.retainSessions(new Set(user.sessions.filter(session => session.expiresAt > now()).map(session => session.hash)));
+        results.push({ userId: user.id, results: await service.runDue() });
+      }
       catch { results.push({ userId: user.id, error: 'Account check failed' }); }
     }
     return results;

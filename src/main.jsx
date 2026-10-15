@@ -33,7 +33,12 @@ function Arrow({ direction = "right" }) {
 
 function App({ session, logout, busy }) {
   const storageKey = session.user ? STORAGE_KEY + ':' + session.user.id : STORAGE_KEY;
-  const [tab, setTab] = useState("home");
+  const [tab, setTab] = useState(() => window.location.hash === "#inbox" ? "inbox" : "home");
+  useEffect(() => {
+    const navigate = () => { if (window.location.hash === "#inbox") setTab("inbox"); };
+    window.addEventListener("hashchange", navigate);
+    return () => window.removeEventListener("hashchange", navigate);
+  }, []);
   const [monitoringDraft, setMonitoringDraft] = useState(null);
   const [alerts, setAlerts] = useState(() => loadAlerts(storageKey, !session.user));
   const [query, setQuery] = useState("");
@@ -121,7 +126,7 @@ function App({ session, logout, busy }) {
 
     <main id="main-content" className="main-content">
       {notice && <p className="notice" role="status">{notice}<button type="button" onClick={() => setNotice("")} aria-label="Dismiss notice">×</button></p>}
-      {tab === "inbox" && <LivePings tab={tab} />}
+      {tab === "inbox" && <LivePings accountId={session.user?.id} tab={tab} />}
       {tab === "home" && <>
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-kicker"><span className="kicker-line" /> THE THINGS THAT MATTER, ALL IN ONE PLACE</div>
@@ -146,7 +151,7 @@ function App({ session, logout, busy }) {
         </section>}
         {!preview && error && <p className="error standalone-error" role="alert">{error}</p>}
 
-        <LivePings tab={tab} draft={monitoringDraft} />
+        <LivePings accountId={session.user?.id} tab={tab} draft={monitoringDraft} />
 
         <section className="explore-section" aria-labelledby="explore-heading"><div className="section-heading"><div><span className="eyebrow">A LITTLE INSPIRATION</span><h2 id="explore-heading">Discover what Pinged can do</h2></div><span className="muted-label">Try an example <Arrow /></span></div><div className="example-grid">{EXAMPLES.map(example => <button key={example.label} type="button" className="example-card" onClick={() => { setQuery(example.prompt); setPreview(null); setEditingId(null); setError(""); window.scrollTo({ top: 0, behavior: "smooth" }); }}><span className="example-icon" aria-hidden="true">{example.icon}</span><span className="example-category">{example.label}</span><strong>{example.prompt}</strong><span className="example-cta">Use this idea <Arrow /></span></button>)}</div></section>
 
@@ -160,7 +165,7 @@ function App({ session, logout, busy }) {
       {tab === "account" && <section className="tab-page"><span className="eyebrow">YOUR PINGED</span><h1>Account<span className="brand-period">.</span></h1><p className="tab-intro">A simple, transparent place for your preferences.</p><div className="account-grid"><div className="account-card"><span className="account-icon" aria-hidden="true">⌂</span><h2>{session.user ? session.user.username : 'Local preview'}</h2><p>{session.user ? 'Your active Pings and inbox are stored separately for this account. Saved ideas stay in this browser, separated by account.' : 'Your saved ideas stay in this browser. This preview uses a single local workspace.'}</p><span className="status-label">{session.user ? 'Signed in · local account' : 'Local workspace'}</span>{session.user && <button className="secondary-button" disabled={busy} onClick={logout}>Sign out</button>}</div><div className="account-card"><span className="account-icon" aria-hidden="true">↓</span><h2>Your data, your control</h2><p>Download a copy of your saved ideas from this browser. Active Pings and inbox discoveries are not included in this export.</p><button className="secondary-button" type="button" onClick={exportDrafts} disabled={!alerts.length}>Export my drafts <Arrow /></button></div></div></section>}
     </main>
 
-    <footer className="site-footer"><div><Logo /><p>Stay close to what matters.</p></div><span>Local preview · Silent RSS inbox · Push pending</span></footer>
+    <footer className="site-footer"><div><Logo /><p>Stay close to what matters.</p></div><span>Local preview · RSS inbox · Optional configured push</span></footer>
     <nav className="mobile-nav" aria-label="Mobile navigation">{[["home", "⌂", "Home"], ["inbox", "✉", "Inbox"], ["account", "◎", "Account"]].map(([id, icon, label]) => <button key={id} type="button" aria-current={tab === id ? "page" : undefined} onClick={() => { setTab(id); window.scrollTo({ top: 0, behavior: "smooth" }); }}><span aria-hidden="true">{icon}</span>{label}</button>)}</nav>
   </div>;
 }

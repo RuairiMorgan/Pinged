@@ -19,3 +19,6 @@
 .account-entry h1 { font-size: clamp(2rem, 6vw, 3rem); margin: 16px 0; }
 .account-entry .monitor-form { display: grid; grid-template-columns: 1fr; margin: 24px 0; }
 .account-card .secondary-button { margin-top: 16px; }
+
+.push-controls { display: block; }
+.push-controls p { margin: 8px 0; }
