@@ -9,10 +9,10 @@ async function api(path, method = 'GET', body) {
 }
 export default function LivePings({ tab, draft }) {
   const [state, setState] = useState(null), [error, setError] = useState(''), [busy, setBusy] = useState(false);
-  const [keyword, setKeyword] = useState(''), [folder, setFolder] = useState('Discoveries'), [source, setSource] = useState('bbc-news');
+  const [request, setRequest] = useState(''), [keyword, setKeyword] = useState(''), [folder, setFolder] = useState('Discoveries'), [source, setSource] = useState('bbc-news'), [editingId, setEditingId] = useState(null);
   const [filter, setFilter] = useState('All'), [savedOnly, setSavedOnly] = useState(false);
   useEffect(() => {
-    if (draft) { setKeyword(""); setFolder(draft.category || "Discoveries"); }
+    if (draft) { setRequest(draft.request); setKeyword(""); setFolder(draft.category || "Discoveries"); setEditingId(null); }
   }, [draft]);
   useEffect(() => {
     let mounted = true;
@@ -35,16 +35,18 @@ export default function LivePings({ tab, draft }) {
     {state && tab === 'home' && <>
       <p>Start with one of your three most useful Pings. Saved ideas below don’t use an active slot.</p>
       {draft && <p className="notice">Set up “{draft.request}”. Confirm the exact phrase and a supported source below. Other suggested sources and price/grade filters are not supported by this RSS checker.</p>}
-      <form id="monitor-setup" className="monitor-form" onSubmit={async e => { e.preventDefault(); if (await act('pings', 'POST', { request: draft?.request || keyword, keyword, sourceIds: [source], folder, delivery: 'silent' })) setKeyword(''); }}>
+      <form id="monitor-setup" className="monitor-form" onSubmit={async e => { e.preventDefault(); if (await act(editingId ? 'pings/' + editingId : 'pings', editingId ? 'PUT' : 'POST', { request: request || keyword, keyword, sourceIds: [source], folder, delivery: 'silent' })) { setRequest(''); setKeyword(''); setEditingId(null); } }}>
+        <label>What should Pinged watch?<input value={request} maxLength={1000} required onChange={e => setRequest(e.target.value)} placeholder="e.g. Climate technology headlines" /></label>
         <label>Exact keyword or phrase<input value={keyword} maxLength={120} required onChange={e => setKeyword(e.target.value)} placeholder="e.g. climate" /></label>
         <label>Source<select value={source} onChange={e => setSource(e.target.value)}>{state.sources.map(s => <option value={s.id} key={s.id}>{s.name}</option>)}</select></label>
         <label>Folder<input value={folder} maxLength={60} onChange={e => setFolder(e.target.value)} /></label>
         <label>Delivery<select value="silent" onChange={() => {}}><option value="silent">Silent Ping · inbox only</option><option disabled>Push · not connected yet</option></select></label>
-        <button className="primary-button" disabled={busy || active >= 3}>Start Ping</button>
+        <button className="primary-button" disabled={busy || (!editingId && active >= 3)}>{editingId ? 'Save changes' : 'Start Ping'}</button>
+        {editingId && <button type="button" className="text-button" disabled={busy} onClick={() => { setEditingId(null); setRequest(''); setKeyword(''); setFolder('Discoveries'); }}>Cancel editing</button>}
       </form>
       {active >= 3 && <p className="helper-text">Your three free Pings are active. Pause one to try another; keep as many saved ideas as you like.</p>}
       <p className="helper-text">The local service checks while it is running, at most every 15 minutes. Only the listed RSS source is supported here; its status comes from actual checks.</p>
-      <div className="alert-list">{pings.map(p => <article className="alert-card" key={p.id}><div className="alert-card-top"><span className="draft-badge">{p.enabled ? 'Active' : 'Paused'} · Silent Ping</span><span>{p.folder}</span></div><h3>{p.request}</h3>{p.sourceIds.map(id => <p key={id}>{state.sources.find(s => s.id === id)?.name} · {p.checks[id] ? `${p.checks[id].status === 'ok' ? 'Checked' : 'Check failed · will retry'} ${new Date(p.checks[id].checkedAt).toLocaleString()}` : 'Awaiting first check'}</p>)}<div className="card-actions"><button disabled={busy || (!p.enabled && active >= 3)} className="text-button" onClick={() => act('pings/' + p.id, 'PATCH', { enabled: !p.enabled })}>{p.enabled ? 'Pause' : 'Resume'}</button><button disabled={busy} className="text-button danger" onClick={() => act('pings/' + p.id, 'DELETE')}>Remove</button></div></article>)}</div>
+      <div className="alert-list">{pings.map(p => <article className="alert-card" key={p.id}><div className="alert-card-top"><span className="draft-badge">{p.enabled ? 'Active' : 'Paused'} · Silent Ping</span><span>{p.folder}</span></div><h3>{p.request}</h3><p>Exact match: “{p.keyword}”</p>{p.sourceIds.map(id => <p key={id}>{state.sources.find(s => s.id === id)?.name} · {p.checks[id] ? `${p.checks[id].status === 'ok' ? 'Checked' : 'Check failed · will retry'} ${new Date(p.checks[id].checkedAt).toLocaleString()}` : 'Awaiting first check'}</p>)}<div className="card-actions"><button disabled={busy} className="text-button" onClick={() => { setEditingId(p.id); setRequest(p.request); setKeyword(p.keyword); setFolder(p.folder); setSource(p.sourceIds[0]); document.getElementById('monitor-setup')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}>Edit</button><button disabled={busy || (!p.enabled && active >= 3)} className="text-button" onClick={() => act('pings/' + p.id, 'PATCH', { enabled: !p.enabled })}>{p.enabled ? 'Pause' : 'Resume'}</button><button disabled={busy} className="text-button danger" onClick={() => act('pings/' + p.id, 'DELETE')}>Remove</button></div></article>)}</div>
     </>}
     {state && tab === 'inbox' && <>
       <div className="inbox-controls"><label>Folder<select value={filter} onChange={e => setFilter(e.target.value)}>{['All', ...new Set(pings.map(p => p.folder))].map(f => <option key={f}>{f}</option>)}</select></label><label><input type="checkbox" checked={savedOnly} onChange={e => setSavedOnly(e.target.checked)} /> Saved only</label></div>

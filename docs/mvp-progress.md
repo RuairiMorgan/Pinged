@@ -101,3 +101,15 @@ Estimate progress against these release outcomes; preserve weights between updat
 - **Verification:** GitHub accepted the code and test commits. The new test and full suite have **not** been executed in this run; build, live feeds, browser QA and deployment remain unverified here. The previous verified 46-test/build result belongs to the preceding increment.
 - **Progress rubric:** unchanged at **30% estimated** until the regression test and full suite are run; this is a safety fix, not a newly satisfied release gate.
 - Next: run full suite/build in a checkout, verify feed reachability and browser interaction, then implement authenticated account isolation and genuine notifications.
+
+## 2026-10-15 — Verified active-Ping editing
+
+- Added dashboard editing for an active or paused Ping's description, exact phrase, source and folder, backed by a dedicated `PUT /api/pings/:id` route and transactional service update.
+- Monitoring changes invalidate in-flight results from the previous criteria, clear obsolete source health, reset failure backoff and make an enabled Ping due immediately. Existing inbox history is retained.
+- Added service/API regression coverage for persistence and the edit-during-fetch race.
+
+**Verification:** the complete repository suite passes with **48 tests** on Node.js 22, including the previously unexecuted activation-revision test and the new edit path. `npm run build` passes with Vite 5.4.21 and `git diff --check` passes. Live feed availability, browser visual/interaction QA, production accounts, genuine push/email and deployment remain unverified.
+
+**Progress rubric:** **31% estimated**. Dashboard/creation-review evidence increases from 10/15 to 11/15 because a running Ping can now be edited through the UI/API with persisted, race-safe monitoring criteria. No credit changed for accounts, live sources, genuine notifications or deployment.
+
+Next: add authenticated account isolation, then genuine notification delivery and live/browser QA.

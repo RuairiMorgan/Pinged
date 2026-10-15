@@ -32,6 +32,7 @@ export function createApiServer({ service, dist = resolve('dist'), allowedOrigin
         if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, await service.snapshot());
         if (req.method === 'POST' && url.pathname === '/api/pings') return json(res, 201, await service.create(await body(req)));
         const match = url.pathname.match(/^\/api\/pings\/([a-zA-Z0-9-]+)(?:\/(feedback))?$/);
+        if (match && req.method === 'PUT' && !match[2]) return json(res, 200, await service.update(match[1], await body(req)));
         if (match && req.method === 'PATCH' && !match[2]) return json(res, 200, await service.setEnabled(match[1], (await body(req))?.enabled));
         if (match && req.method === 'DELETE' && !match[2]) { await service.remove(match[1]); return json(res, 200, { ok: true }); }
         if (match && req.method === 'POST' && match[2]) { const input = await body(req); await service.feedback(match[1], input?.itemId, input?.value); return json(res, 200, { ok: true }); }

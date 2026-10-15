@@ -4,6 +4,8 @@ Pinged is a personal monitoring and discovery product: describe something you ca
 
 ## Current status — prototype, **not** a live monitoring service
 
+Active and paused Pings can be edited from the dashboard. Criteria changes are persisted transactionally, restart monitoring safely, and cannot accept a late result from the previous criteria.
+
 - The responsive Home / Inbox / Account UI is a local preview.
 - Natural-language requests are parsed by a basic **rule-based** planner (`src/searchPlanner.js`). It is not an AI agent.
 - Source recommendations are **candidates**, not verified working integrations. RSS candidates still require feed verification, a backend, and scheduled checks.

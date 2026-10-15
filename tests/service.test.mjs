@@ -36,6 +36,28 @@ test('unsupported sources, too many sources, unavailable notifications and bad p
   assert.deepEqual((await service.snapshot()).pings, []);
 });
 
+test('editing criteria is persistent, restarts checking, and invalidates an in-flight old-criteria result', async t => {
+  let release, started;
+  const entered = new Promise(resolve => { started = resolve; });
+  const f = await fixture(t, (sourceId, keyword) => {
+    if (keyword === 'climate') { started(); return new Promise(resolve => { release = resolve; }); }
+    return { status: 'ok', matches: [] };
+  });
+  const ping = await f.service.create(input);
+  const running = f.service.runDue();
+  await entered;
+  await f.service.update(ping.id, { ...input, request: 'Battery headlines', keyword: 'battery', folder: 'Technology' });
+  release({ status: 'ok', matches: [match] });
+  await running;
+  const edited = (await f.service.snapshot()).pings[0];
+  assert.equal(edited.request, 'Battery headlines');
+  assert.equal(edited.keyword, 'battery');
+  assert.equal(edited.folder, 'Technology');
+  assert.equal(edited.inbox.length, 0);
+  assert.deepEqual(edited.checks, {});
+  assert.equal(edited.nextDueAt, f.now());
+});
+
 test('matching, durable scheduling, inbox deduplication and feedback survive a service restart', async t => {
   let calls = 0;
   const checker = async () => { calls++; return { status: 'ok', matches: [match, match, { ...match, id: 'unsafe', link: 'javascript:alert(1)' }] }; };
@@ -87,6 +109,9 @@ test('real HTTP API persists create/pause and rejects browser cross-origin and u
   assert.equal((await fetch(base + '/api/state', { headers: { ...headers, Origin: 'https://attacker.example' } })).status, 403);
   const response = await fetch(base + '/api/pings', { method: 'POST', headers, body: JSON.stringify(input) });
   assert.equal(response.status, 201); const ping = await response.json();
+  const edit = await fetch(base + '/api/pings/' + ping.id, { method: 'PUT', headers, body: JSON.stringify({ ...input, keyword: 'battery' }) });
+  assert.equal(edit.status, 200);
+  assert.equal((await edit.json()).keyword, 'battery');
   assert.equal((await fetch(base + '/api/pings/' + ping.id, { method: 'PATCH', headers, body: '{bad' })).status, 400);
   assert.equal((await fetch(base + '/api/pings/' + ping.id, { method: 'PATCH', headers, body: 'null' })).status, 400);
   assert.equal((await fetch(base + '/api/pings/' + ping.id, { method: 'PATCH', headers, body: JSON.stringify({ enabled: false }) })).status, 200);
