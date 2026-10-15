@@ -76,6 +76,30 @@ test('matching, durable scheduling, inbox deduplication and feedback survive a s
   assert.equal(record.inbox[0].feedback, 'useful'); assert.equal(record.keyword, 'climate');
 });
 
+test('data export includes user content and excludes delivery and scheduler internals', async t => {
+  const f = await fixture(t, async () => ({ status: 'ok', matches: [match] }));
+  const ping = await f.service.create(input);
+  await f.service.runDue();
+  await f.service.setLearning(true);
+  await f.service.feedback(ping.id, match.id, 'useful');
+  await f.store.transaction(state => {
+    state.pushSubscriptions = [{ id: 'private-device', subscription: { endpoint: 'https://example.com/private' } }];
+    state.pushOutbox = [{ id: 'private-job', subscriptionId: 'private-device' }];
+  });
+  const exported = await f.service.exportData();
+  assert.equal(exported.version, 1);
+  assert.equal(exported.exportedAt, new Date(f.now()).toISOString());
+  assert.equal(exported.pings[0].id, ping.id);
+  assert.equal(exported.pings[0].inbox[0].title, match.title);
+  assert.equal(exported.learning.enabled, true);
+  assert.equal(exported.learning.profile[0].keyword, 'climate');
+  for (const privateField of ['seen', 'nextDueAt', 'failures', 'activationRevision', 'pushSubscriptions', 'pushOutbox']) {
+    assert.equal(JSON.stringify(exported).includes(privateField), false);
+  }
+  assert.equal(JSON.stringify(exported).includes('private-device'), false);
+  assert.equal(JSON.stringify(exported).includes('private-job'), false);
+});
+
 test('interest learning is opt-in, reviewable, resettable and never changes explicit Ping criteria', async t => {
   const checker = async () => ({ status: 'ok', matches: [match] });
   const f = await fixture(t, checker);

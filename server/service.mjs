@@ -58,6 +58,17 @@ export function createPingService({ store, checker = checkFeed, now = Date.now, 
       limits: { active: 3, sourcesPerPing: 3 }, service: 'local-single-owner', notifications: push.status(state),
       learning: learningView(state) };
   }
+  async function exportData() {
+    const state = await store.read();
+    const pings = (state.pings || []).map(ping => ({
+      id: ping.id, request: ping.request, keyword: ping.keyword, sourceIds: [...ping.sourceIds], folder: ping.folder,
+      delivery: ping.delivery, enabled: ping.enabled, createdAt: ping.createdAt, updatedAt: ping.updatedAt || null,
+      checks: structuredClone(ping.checks || {}), inbox: structuredClone(ping.inbox || [])
+    }));
+    const learning = learningView(state);
+    return { version: 1, exportedAt: new Date(now()).toISOString(), pings,
+      learning: { enabled: learning.enabled, profile: structuredClone(learning.profile), updatedAt: learning.updatedAt } };
+  }
   async function setLearning(enabled) {
     if (typeof enabled !== 'boolean') bad('Learning preference must be true or false.');
     return store.transaction(state => {
@@ -207,5 +218,5 @@ export function createPingService({ store, checker = checkFeed, now = Date.now, 
     })().finally(() => { running = null; });
     return running;
   }
-  return Object.freeze({ snapshot, create, update, setEnabled, remove, feedback, setLearning, resetLearning, dismissSuggestion, runDue, push });
+  return Object.freeze({ snapshot, exportData, create, update, setEnabled, remove, feedback, setLearning, resetLearning, dismissSuggestion, runDue, push });
 }

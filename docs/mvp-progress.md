@@ -167,3 +167,16 @@ Next: generate conservative reviewable suggestions without activating them, then
 **Progress rubric:** **41% estimated**. Suggestions/preference-controls evidence increases from 2/5 to 4/5 for the generated, explainable, dismissible and approval-gated flow. No other rubric credit changes.
 
 Next: prioritize real browser/live-source verification, production account infrastructure and deployed end-to-end QA.
+
+## 2026-10-15 — Complete private account-data export
+
+- Replaced the browser-drafts-only export with one JSON export containing active and paused Pings, exact criteria, source-check history, inbox discoveries, explicit feedback, learning preferences and browser-local saved ideas.
+- The authenticated endpoint resolves the workspace from the server session and preserves account isolation. Cross-account export coverage verifies that one account cannot receive another account's Pings or inbox.
+- Credentials, sessions, push subscriptions/endpoints, delivery jobs, deduplication history, activation revisions, failure counters and scheduler due times are deliberately excluded. Exporting does not mutate or pause monitoring.
+- Updated the Account screen and privacy documentation to describe precisely what is and is not included.
+
+**Verification:** the focused account/service suite passes with **16 tests**. The complete **67-test** Node suite passes, `npm run build` passes with Vite 5.4.21, and `git diff --check` passes. The hosted browser could not reach the loopback preview and timed out, so no browser interaction or visual QA is claimed. Live RSS, actual device notification display and deployment also remain unverified.
+
+**Progress rubric:** **42% estimated**. Accounts, user isolation and production data controls increase from 4/15 to 5/15 for a tested, account-isolated user-data export. This remains local JSON storage and is not credited as production account infrastructure. All other rubric credits are unchanged, including live/browser/deployment at 0/10.
+
+Next: browser QA in a runtime that can reach the preview, live supported-source verification, production account/storage/job infrastructure and real device-notification testing.

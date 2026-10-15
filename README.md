@@ -45,7 +45,7 @@ Passwords use salted scrypt hashes. Random session tokens are stored only as has
 
 API ownership comes from the session, never a supplied user ID. Another account's Ping IDs return 404 for mutations. Dashboard requests carry the account they were rendered for, so a stale tab cannot modify a newly signed-in account; storage/focus events refresh the workspace across tabs. Browser-local saved-idea keys separate account views but are not encrypted storage.
 
-State is written atomically with restrictive file permissions under gitignored `data/`: `pinged.json` for the original workspace, `accounts.json` for credentials/sessions and `users/<account-id>.json` for account workspaces. The Account export currently covers browser-local saved ideas, not inbox/monitor data.
+State is written atomically with restrictive file permissions under gitignored `data/`: `pinged.json` for the original workspace, `accounts.json` for credentials/sessions and `users/<account-id>.json` for account workspaces. The Account screen exports active and paused Pings, inbox discoveries, learning preferences and browser-local saved ideas. It deliberately excludes credentials, sessions, device subscriptions, push-delivery jobs, deduplication history and scheduler internals.
 
 ## Supported-source monitoring
 

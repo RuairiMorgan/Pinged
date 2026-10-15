@@ -53,6 +53,7 @@ export function createApiServer({ service, accounts, dist = resolve('dist'), all
         if (url.pathname === '/api/preferences/learning' && req.method === 'DELETE') return json(res, 200, await currentService.resetLearning());
         const suggestion = url.pathname.match(/^\/api\/preferences\/learning\/suggestions\/([a-f0-9]{20})$/);
         if (suggestion && req.method === 'DELETE') return json(res, 200, await currentService.dismissSuggestion(suggestion[1]));
+        if (req.method === 'GET' && url.pathname === '/api/export') return json(res, 200, await currentService.exportData());
         if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, await currentService.snapshot());
         if (req.method === 'POST' && url.pathname === '/api/pings') return json(res, 201, await currentService.create(await body(req)));
         const match = url.pathname.match(/^\/api\/pings\/([a-zA-Z0-9-]+)(?:\/(feedback))?$/);

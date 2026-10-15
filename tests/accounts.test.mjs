@@ -89,6 +89,15 @@ test('HTTP accounts isolate reads, writes, inbox, slots and sessions across rest
   assert.equal(aliceState.pings.length, 3); assert.equal(bobState.pings.length, 1);
   assert.equal(aliceState.pings[0].inbox.length, 1);
   assert.equal(bobState.pings.some(p => p.id === ping.id), false);
+  const aliceExportResponse = await request('export', 'GET', undefined, cookieA);
+  const bobExportResponse = await request('export', 'GET', undefined, cookieB);
+  assert.equal(aliceExportResponse.status, 200); assert.equal(bobExportResponse.status, 200);
+  const aliceExport = await aliceExportResponse.json(), bobExport = await bobExportResponse.json();
+  assert.equal(aliceExport.pings.length, 3); assert.equal(bobExport.pings.length, 1);
+  assert.equal(aliceExport.pings[0].inbox.length, 1); assert.equal(bobExport.pings[0].inbox.length, 1);
+  assert.equal(bobExport.pings.some(p => p.id === ping.id), false);
+  assert.equal(JSON.stringify(aliceExport).includes(password), false);
+  assert.equal(JSON.stringify(aliceExport).includes(readSessionCookie(cookieA)), false);
   assert.equal((await request(`pings/${ping.id}/feedback`, 'POST', { itemId: 'story', value: 'saved' }, cookieB)).status, 404);
   const restarted = f.restart();
   assert.equal((await restarted.serviceFor(alice).snapshot()).pings.length, 3);

@@ -48,6 +48,7 @@ function App({ session, logout, busy }) {
   const [editingId, setEditingId] = useState(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     try { localStorage.setItem(storageKey, JSON.stringify(alerts)); }
@@ -103,15 +104,21 @@ function App({ session, logout, busy }) {
     setNotice("Draft removed from this browser.");
   }
 
-  function exportDrafts() {
-    const data = new Blob([JSON.stringify(alerts, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(data);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "pinged-drafts.json";
-    link.click();
-    URL.revokeObjectURL(url);
-    setNotice("Your drafts were exported as a JSON file.");
+  async function exportData() {
+    setExporting(true); setError(""); setNotice("");
+    try {
+      const response = await fetch('/api/export', { headers: { 'X-Pinged-Client': '1', ...(session.user ? { 'X-Pinged-Account': session.user.id } : {}) } });
+      if (!(response.headers.get('content-type') || '').includes('application/json')) throw new Error('Start the Pinged service, then try again.');
+      const serverData = await response.json();
+      if (response.status === 401 || serverData.code === 'account_changed') window.dispatchEvent(new Event('pinged-session-ended'));
+      if (!response.ok) throw new Error(serverData.error || 'Could not export your data.');
+      const data = new Blob([JSON.stringify({ ...serverData, savedIdeas: alerts }, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(data);
+      const link = document.createElement("a");
+      link.href = url; link.download = "pinged-account-data.json"; link.click(); URL.revokeObjectURL(url);
+      setNotice("Your Pings, inbox, learning preferences and saved ideas were exported as a JSON file.");
+    } catch (reason) { setError(reason.message || 'Could not export your data.'); }
+    finally { setExporting(false); }
   }
 
   return <div className="app-shell">
@@ -163,7 +170,7 @@ function App({ session, logout, busy }) {
 
 
 
-      {tab === "account" && <section className="tab-page"><span className="eyebrow">YOUR PINGED</span><h1>Account<span className="brand-period">.</span></h1><p className="tab-intro">A simple, transparent place for your preferences.</p><div className="account-grid"><div className="account-card"><span className="account-icon" aria-hidden="true">⌂</span><h2>{session.user ? session.user.username : 'Local preview'}</h2><p>{session.user ? 'Your active Pings and inbox are stored separately for this account. Saved ideas stay in this browser, separated by account.' : 'Your saved ideas stay in this browser. This preview uses a single local workspace.'}</p><span className="status-label">{session.user ? 'Signed in · local account' : 'Local workspace'}</span>{session.user && <button className="secondary-button" disabled={busy} onClick={logout}>Sign out</button>}</div><div className="account-card"><span className="account-icon" aria-hidden="true">↓</span><h2>Your data, your control</h2><p>Download a copy of your saved ideas from this browser. Active Pings and inbox discoveries are not included in this export.</p><button className="secondary-button" type="button" onClick={exportDrafts} disabled={!alerts.length}>Export my drafts <Arrow /></button></div><LearningPreferences accountId={session.user?.id} onReviewSuggestion={suggestion => { setQuery(suggestion.request); setPreview(null); setEditingId(null); setTab('home'); setNotice('Review this suggested idea before saving it. Nothing has been activated.'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} /></div></section>}
+      {tab === "account" && <section className="tab-page"><span className="eyebrow">YOUR PINGED</span><h1>Account<span className="brand-period">.</span></h1><p className="tab-intro">A simple, transparent place for your preferences.</p><div className="account-grid"><div className="account-card"><span className="account-icon" aria-hidden="true">⌂</span><h2>{session.user ? session.user.username : 'Local preview'}</h2><p>{session.user ? 'Your active Pings and inbox are stored separately for this account. Saved ideas stay in this browser, separated by account.' : 'Your saved ideas stay in this browser. This preview uses a single local workspace.'}</p><span className="status-label">{session.user ? 'Signed in · local account' : 'Local workspace'}</span>{session.user && <button className="secondary-button" disabled={busy} onClick={logout}>Sign out</button>}</div><div className="account-card"><span className="account-icon" aria-hidden="true">↓</span><h2>Your data, your control</h2><p>Download your active and paused Pings, inbox discoveries, learning preferences and saved ideas. Device subscriptions, delivery jobs and internal scheduler data are excluded.</p><button className="secondary-button" type="button" onClick={exportData} disabled={exporting}>{exporting ? 'Preparing export…' : 'Export my data'} <Arrow /></button></div><LearningPreferences accountId={session.user?.id} onReviewSuggestion={suggestion => { setQuery(suggestion.request); setPreview(null); setEditingId(null); setTab('home'); setNotice('Review this suggested idea before saving it. Nothing has been activated.'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} /></div></section>}
     </main>
 
     <footer className="site-footer"><div><Logo /><p>Stay close to what matters.</p></div><span>Local preview · RSS inbox · Optional configured push</span></footer>
