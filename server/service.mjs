@@ -43,7 +43,10 @@ export function createPingService({ store, checker = checkFeed, now = Date.now }
     return store.transaction(state => {
       const ping = find(state, id);
       if (enabled && !ping.enabled && state.pings.filter(p => p.enabled).length >= 3) bad('Pause another Ping before resuming this one.');
-      ping.enabled = enabled;
+      if (ping.enabled !== enabled) {
+        ping.enabled = enabled;
+        ping.activationRevision = (ping.activationRevision || 0) + 1;
+      }
       return ping;
     });
   }
@@ -84,7 +87,7 @@ export function createPingService({ store, checker = checkFeed, now = Date.now }
           } catch { result = { status: 'error', matches: [] }; }
           await store.transaction(state => {
             const ping = state.pings.find(p => p.id === reserved.id);
-            if (!ping?.enabled) return;
+            if (!ping?.enabled || (ping.activationRevision || 0) !== (reserved.activationRevision || 0)) return;
             const checkedAt = new Date(now()).toISOString();
             ping.checks[sourceId] = { status: result.status, checkedAt, newMatches: 0 };
             if (result.status === 'ok') {
@@ -106,7 +109,7 @@ export function createPingService({ store, checker = checkFeed, now = Date.now }
         }
         await store.transaction(state => {
           const ping = state.pings.find(p => p.id === reserved.id);
-          if (!ping?.enabled) return;
+          if (!ping?.enabled || (ping.activationRevision || 0) !== (reserved.activationRevision || 0)) return;
           const failed = reserved.sourceIds.some(id => ping.checks[id]?.status !== 'ok');
           ping.failures = failed ? Math.min(ping.failures + 1, 8) : 0;
           ping.nextDueAt = now() + Math.min(INTERVAL * 2 ** ping.failures, MAX_INTERVAL);
