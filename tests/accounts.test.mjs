@@ -70,6 +70,11 @@ test('HTTP accounts isolate reads, writes, inbox, slots and sessions across rest
   const bobResponse = await request('register', 'POST', { username: 'bob', password });
   const cookieB = bobResponse.headers.get('set-cookie').split(';')[0];
   const bob = (await bobResponse.json()).user;
+  const learning = await request('preferences/learning', 'PUT', { enabled: true }, cookieA);
+  assert.equal(learning.status, 200);
+  assert.equal((await learning.json()).enabled, true);
+  assert.equal((await (await request('state', 'GET', undefined, cookieA)).json()).learning.enabled, true);
+  assert.equal((await (await request('state', 'GET', undefined, cookieB)).json()).learning.enabled, false);
   const created = await request('pings', 'POST', { ...input, userId: bob.id }, cookieA);
   const ping = await created.json(); assert.equal(created.status, 201);
   await request('pings', 'POST', input, cookieA); await request('pings', 'POST', input, cookieA);

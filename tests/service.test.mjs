@@ -76,6 +76,29 @@ test('matching, durable scheduling, inbox deduplication and feedback survive a s
   assert.equal(record.inbox[0].feedback, 'useful'); assert.equal(record.keyword, 'climate');
 });
 
+test('interest learning is opt-in, reviewable, resettable and never changes explicit Ping criteria', async t => {
+  const checker = async () => ({ status: 'ok', matches: [match] });
+  const f = await fixture(t, checker);
+  const ping = await f.service.create(input);
+  await f.service.runDue();
+  await f.service.feedback(ping.id, match.id, 'useful');
+  assert.deepEqual((await f.service.snapshot()).learning, { enabled: false, profile: [] });
+  await f.service.setLearning(true);
+  await f.service.feedback(ping.id, match.id, 'useful');
+  let state = await f.service.snapshot();
+  assert.equal(state.learning.enabled, true);
+  assert.deepEqual(state.learning.profile.map(({ keyword, folder, sourceId, useful, notUseful }) => ({ keyword, folder, sourceId, useful, notUseful })), [{ keyword: 'climate', folder: 'News', sourceId: 'bbc-news', useful: 1, notUseful: 0 }]);
+  assert.equal(state.pings[0].keyword, 'climate');
+  assert.deepEqual(state.pings[0].sourceIds, ['bbc-news']);
+  await f.service.feedback(ping.id, match.id, 'not-useful');
+  state = await f.service.snapshot();
+  assert.equal(state.learning.profile[0].useful, 0);
+  assert.equal(state.learning.profile[0].notUseful, 1);
+  await f.service.resetLearning();
+  assert.deepEqual((await f.service.snapshot()).learning.profile, []);
+  assert.equal((await f.service.snapshot()).learning.enabled, false);
+});
+
 test('failed source checks keep discoveries and persist backoff across restart', async t => {
   let failed = false;
   const checker = async () => { if (failed) throw Error('down'); return { status: 'ok', matches: [match] }; };

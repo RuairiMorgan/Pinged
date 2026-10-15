@@ -30,7 +30,23 @@ export function createPingService({ store, checker = checkFeed, now = Date.now, 
   async function snapshot() {
     const state = await store.read();
     return { pings: state.pings || [], sources: Object.values(FEED_SOURCES).map(({ id, name, status }) => ({ id, name, status })),
-      limits: { active: 3, sourcesPerPing: 3 }, service: 'local-single-owner', notifications: push.status(state) };
+      limits: { active: 3, sourcesPerPing: 3 }, service: 'local-single-owner', notifications: push.status(state),
+      learning: state.learning || { enabled: false, profile: [] } };
+  }
+  async function setLearning(enabled) {
+    if (typeof enabled !== 'boolean') bad('Learning preference must be true or false.');
+    return store.transaction(state => {
+      state.learning ||= { enabled: false, profile: [] };
+      state.learning.enabled = enabled;
+      state.learning.updatedAt = new Date(now()).toISOString();
+      return state.learning;
+    });
+  }
+  async function resetLearning() {
+    return store.transaction(state => {
+      state.learning = { enabled: false, profile: [], updatedAt: new Date(now()).toISOString() };
+      return state.learning;
+    });
   }
   async function create(input) {
     const normalized = normalizeInput(input);
@@ -84,6 +100,18 @@ export function createPingService({ store, checker = checkFeed, now = Date.now, 
       // Explicit preference only; never rewrite the Ping's keyword or sources.
       if (value === 'saved') item.saved = !item.saved;
       else item.feedback = value === 'none' ? null : value;
+      if (value !== 'saved' && state.learning?.enabled) {
+        const profile = new Map();
+        for (const candidate of state.pings || []) for (const discovery of candidate.inbox || []) {
+          if (!['useful', 'not-useful'].includes(discovery.feedback)) continue;
+          const key = `${candidate.keyword}\u0000${candidate.folder}\u0000${discovery.sourceId}`;
+          const signal = profile.get(key) || { keyword: candidate.keyword, folder: candidate.folder, sourceId: discovery.sourceId, useful: 0, notUseful: 0 };
+          signal[discovery.feedback === 'useful' ? 'useful' : 'notUseful']++;
+          profile.set(key, signal);
+        }
+        state.learning.profile = [...profile.values()].sort((a, b) => (b.useful + b.notUseful) - (a.useful + a.notUseful) || a.keyword.localeCompare(b.keyword)).slice(0, 50);
+        state.learning.updatedAt = new Date(now()).toISOString();
+      }
     });
   }
   function runDue() {
@@ -145,5 +173,5 @@ export function createPingService({ store, checker = checkFeed, now = Date.now, 
     })().finally(() => { running = null; });
     return running;
   }
-  return Object.freeze({ snapshot, create, update, setEnabled, remove, feedback, runDue, push });
+  return Object.freeze({ snapshot, create, update, setEnabled, remove, feedback, setLearning, resetLearning, runDue, push });
 }

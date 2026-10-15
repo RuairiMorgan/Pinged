@@ -5,6 +5,7 @@ import { createDraft, normalizeAlerts, sourceReadiness, STORAGE_KEY, LEGACY_STOR
 import "./style.css";
 import LivePings from "./LivePings.jsx";
 import AccountGate from "./AccountGate.jsx";
+import LearningPreferences from "./LearningPreferences.jsx";
 
 const EXAMPLES = [
   { label: "Collectibles", prompt: "Find 1996 Japanese Pikachu PSA 10 cards under $500", icon: "✦" },
@@ -162,7 +163,7 @@ function App({ session, logout, busy }) {
 
 
 
-      {tab === "account" && <section className="tab-page"><span className="eyebrow">YOUR PINGED</span><h1>Account<span className="brand-period">.</span></h1><p className="tab-intro">A simple, transparent place for your preferences.</p><div className="account-grid"><div className="account-card"><span className="account-icon" aria-hidden="true">⌂</span><h2>{session.user ? session.user.username : 'Local preview'}</h2><p>{session.user ? 'Your active Pings and inbox are stored separately for this account. Saved ideas stay in this browser, separated by account.' : 'Your saved ideas stay in this browser. This preview uses a single local workspace.'}</p><span className="status-label">{session.user ? 'Signed in · local account' : 'Local workspace'}</span>{session.user && <button className="secondary-button" disabled={busy} onClick={logout}>Sign out</button>}</div><div className="account-card"><span className="account-icon" aria-hidden="true">↓</span><h2>Your data, your control</h2><p>Download a copy of your saved ideas from this browser. Active Pings and inbox discoveries are not included in this export.</p><button className="secondary-button" type="button" onClick={exportDrafts} disabled={!alerts.length}>Export my drafts <Arrow /></button></div></div></section>}
+      {tab === "account" && <section className="tab-page"><span className="eyebrow">YOUR PINGED</span><h1>Account<span className="brand-period">.</span></h1><p className="tab-intro">A simple, transparent place for your preferences.</p><div className="account-grid"><div className="account-card"><span className="account-icon" aria-hidden="true">⌂</span><h2>{session.user ? session.user.username : 'Local preview'}</h2><p>{session.user ? 'Your active Pings and inbox are stored separately for this account. Saved ideas stay in this browser, separated by account.' : 'Your saved ideas stay in this browser. This preview uses a single local workspace.'}</p><span className="status-label">{session.user ? 'Signed in · local account' : 'Local workspace'}</span>{session.user && <button className="secondary-button" disabled={busy} onClick={logout}>Sign out</button>}</div><div className="account-card"><span className="account-icon" aria-hidden="true">↓</span><h2>Your data, your control</h2><p>Download a copy of your saved ideas from this browser. Active Pings and inbox discoveries are not included in this export.</p><button className="secondary-button" type="button" onClick={exportDrafts} disabled={!alerts.length}>Export my drafts <Arrow /></button></div><LearningPreferences accountId={session.user?.id} /></div></section>}
     </main>
 
     <footer className="site-footer"><div><Logo /><p>Stay close to what matters.</p></div><span>Local preview · RSS inbox · Optional configured push</span></footer>

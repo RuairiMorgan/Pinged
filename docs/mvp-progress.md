@@ -141,3 +141,16 @@ Next: run browser QA in a browser-capable runtime, move isolated storage/session
 **Progress rubric:** **37% estimated**. Inbox/notification evidence increases from 5/15 to 7/15 for the tested durable/configurable path. Accounts/isolation stays at 4/15, dashboard at 11/15, sources at 3/15, persistence at 10/15, entitlements at 2/10, suggestions at 0/5 and live/browser/deployment at 0/10. No credit is assigned for a real push delivery or deployed production service.
 
 **Final checkpoint verification:** the complete **64-test** Node suite passes, `npm run build` passes with Vite 5.4.21, and `git diff --check` passes. Tests ran on Node.js 24.19.0. No browser, live feed or actual push-provider/device success is claimed. Estimated release completion remains **37%**.
+
+## 2026-10-15 — Private, reviewable interest learning controls
+
+- Added opt-in interest learning driven only by explicit Useful / Not useful discovery feedback. Learning is off by default and never modifies a Ping's request, exact keyword, sources, folder or delivery.
+- Added an account screen that shows the complete learned profile as useful/not-useful counts by keyword, folder and source, with controls to disable learning or erase it completely.
+- Added account-scoped API controls and persisted profiles. Separate accounts cannot read or alter one another's learning preferences.
+- The UI explicitly states that new suggested Pings will still require approval. No automatic Ping creation or criteria mutation was added.
+
+**Verification:** the complete **65-test** Node suite passes, including opt-in behavior, feedback replacement, criteria immutability, reset and HTTP account isolation. `npm run build` passes with Vite 5.4.21 and `git diff --check` passes. Browser interaction, live sources, actual push delivery and deployment remain unverified.
+
+**Progress rubric:** **39% estimated**. Suggestions/preference-controls evidence increases from 0/5 to 2/5 for the persisted, account-isolated review/reset path. No credit is claimed for generated suggestions because that feature is not implemented; all other rubric values remain unchanged.
+
+Next: generate conservative reviewable suggestions without activating them, then verify the complete experience in a real browser and live-source environment.

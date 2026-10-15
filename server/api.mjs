@@ -49,6 +49,8 @@ export function createApiServer({ service, accounts, dist = resolve('dist'), all
         const currentService = accounts ? accounts.serviceFor(user) : service;
         if (accounts && url.pathname === '/api/push/subscription' && req.method === 'POST') return json(res, 200, await currentService.push.subscribe(await body(req), pushSessionKey(token)));
         if (accounts && url.pathname === '/api/push/subscription' && req.method === 'DELETE') { await currentService.push.unsubscribe(pushSessionKey(token)); return json(res, 200, { ok: true }); }
+        if (url.pathname === '/api/preferences/learning' && req.method === 'PUT') return json(res, 200, await currentService.setLearning((await body(req))?.enabled));
+        if (url.pathname === '/api/preferences/learning' && req.method === 'DELETE') return json(res, 200, await currentService.resetLearning());
         if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, await currentService.snapshot());
         if (req.method === 'POST' && url.pathname === '/api/pings') return json(res, 201, await currentService.create(await body(req)));
         const match = url.pathname.match(/^\/api\/pings\/([a-zA-Z0-9-]+)(?:\/(feedback))?$/);
