@@ -81,3 +81,20 @@ For frontend development, run `npm start` alongside `npm run dev`; Vite proxies 
 - Push/email are explicitly unavailable; accounts, learning, billing, production storage, other marketplace/news integrations, browser QA and deployment are still pending.
 
 See `docs/product-decisions.md` for the owner-approved product contract and release gates. Earlier sections describe staged development; this section supersedes statements that the checker has no local UI bridge.
+
+## Opt-in local accounts — October 15
+
+To try separate local accounts, build the dashboard and start the same loopback server with:
+
+```sh
+npm ci
+npm run build
+PINGED_ACCOUNTS=1 npm start
+# Open http://127.0.0.1:8787
+```
+
+Create a username (3–40 letters/numbers/underscores/hyphens) and a password (12–128 characters). Account mode includes registration, sign-in, sign-out, seven-day revocable sessions, per-account monitoring stores, per-account three-active-Ping limits and account-scoped browser saved ideas. Credentials use salted scrypt hashes; random session secrets are stored only as hashes. The browser receives an HttpOnly, SameSite=Strict cookie. API ownership always comes from the session; a supplied user ID cannot select another workspace. Startup's due-job loop checks each account independently.
+
+Without the flag, the original single-owner workspace remains available. Existing `data/pinged.json` and legacy browser drafts are not automatically assigned to new accounts. Account data lives in gitignored `data/accounts.json` and `data/users/`. Run only one server process against these files. Saved ideas stay browser-local rather than syncing to other devices; browser keys separate account views and are not encrypted storage.
+
+This is local account isolation, **not production-ready hosted identity**. Password recovery, email verification, cloud sync, HTTPS hosting, distributed throttling, database storage and deployment are pending. Account screens compile, but browser interaction is not yet verified. All 53 Node tests pass, including HTTP isolation, expiry, revocation and restart coverage. No push/email or live RSS success is claimed.

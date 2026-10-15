@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 async function api(path, method = 'GET', body) {
   const response = await fetch('/api/' + path, { method, headers: { 'X-Pinged-Client': '1', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body) });
   if (!(response.headers.get('content-type') || '').includes('application/json')) throw new Error('Start the local monitoring service to connect this dashboard.');
+  if (response.status === 401) window.dispatchEvent(new Event('pinged-session-ended'));
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Could not complete this action.');
   return result;

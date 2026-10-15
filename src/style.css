@@ -14,3 +14,8 @@
 .live-pings a { color: #007f86; }
 .live-pings p { overflow-wrap: anywhere; }
 @media(max-width: 640px) { .monitor-form { grid-template-columns: 1fr; } .inbox-controls { flex-wrap: wrap; } }
+
+.account-entry { width: min(520px, calc(100% - 40px)); margin: 10vh auto; padding: 32px; border: 1px solid #dce8e7; border-radius: 24px; background: white; }
+.account-entry h1 { font-size: clamp(2rem, 6vw, 3rem); margin: 16px 0; }
+.account-entry .monitor-form { display: grid; grid-template-columns: 1fr; margin: 24px 0; }
+.account-card .secondary-button { margin-top: 16px; }

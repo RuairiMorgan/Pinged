@@ -4,6 +4,7 @@ import { resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FilePollStore } from './polling.mjs';
 import { createPingService } from './service.mjs';
+import { createAccounts, readSessionCookie, sessionCookie } from './accounts.mjs';
 
 const json = (res, status, value) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }); res.end(JSON.stringify(value)); };
 async function body(req) {
@@ -17,8 +18,8 @@ async function body(req) {
   try { return JSON.parse(text); } catch { throw Object.assign(new Error('Invalid JSON'), { status: 400 }); }
 }
 
-export function createApiServer({ service, dist = resolve('dist'), allowedOrigins = ['http://127.0.0.1:5173', 'http://localhost:5173'] } = {}) {
-  if (!service) throw new Error('Service required');
+export function createApiServer({ service, accounts, dist = resolve('dist'), allowedOrigins = ['http://127.0.0.1:5173', 'http://localhost:5173'] } = {}) {
+  if (!service && !accounts) throw new Error('Service required');
   return createServer(async (req, res) => {
     try {
       const host = req.headers.host || '';
@@ -29,13 +30,28 @@ export function createApiServer({ service, dist = resolve('dist'), allowedOrigin
       if (url.pathname.startsWith('/api/')) {
         // Custom header blocks browser cross-site simple requests; no CORS permission is granted.
         if (req.headers['x-pinged-client'] !== '1') return json(res, 403, { error: 'Pinged client required' });
-        if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, await service.snapshot());
-        if (req.method === 'POST' && url.pathname === '/api/pings') return json(res, 201, await service.create(await body(req)));
+        const token = readSessionCookie(req.headers.cookie);
+        const user = accounts ? await accounts.authenticate(token) : null;
+        if (req.method === 'GET' && url.pathname === '/api/session') return json(res, 200, { mode: accounts ? 'accounts' : 'local', user });
+        if (accounts && req.method === 'POST' && ['/api/register', '/api/login'].includes(url.pathname)) {
+          const result = await accounts[url.pathname === '/api/register' ? 'register' : 'login'](await body(req), req.socket.remoteAddress);
+          res.setHeader('Set-Cookie', sessionCookie(result.token));
+          return json(res, 200, { user: result.user });
+        }
+        if (accounts && req.method === 'POST' && url.pathname === '/api/logout') {
+          await accounts.logout(token);
+          res.setHeader('Set-Cookie', sessionCookie(''));
+          return json(res, 200, { ok: true });
+        }
+        if (accounts && !user) return json(res, 401, { error: 'Sign in to continue.' });
+        const currentService = accounts ? accounts.serviceFor(user) : service;
+        if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, await currentService.snapshot());
+        if (req.method === 'POST' && url.pathname === '/api/pings') return json(res, 201, await currentService.create(await body(req)));
         const match = url.pathname.match(/^\/api\/pings\/([a-zA-Z0-9-]+)(?:\/(feedback))?$/);
-        if (match && req.method === 'PUT' && !match[2]) return json(res, 200, await service.update(match[1], await body(req)));
-        if (match && req.method === 'PATCH' && !match[2]) return json(res, 200, await service.setEnabled(match[1], (await body(req))?.enabled));
-        if (match && req.method === 'DELETE' && !match[2]) { await service.remove(match[1]); return json(res, 200, { ok: true }); }
-        if (match && req.method === 'POST' && match[2]) { const input = await body(req); await service.feedback(match[1], input?.itemId, input?.value); return json(res, 200, { ok: true }); }
+        if (match && req.method === 'PUT' && !match[2]) return json(res, 200, await currentService.update(match[1], await body(req)));
+        if (match && req.method === 'PATCH' && !match[2]) return json(res, 200, await currentService.setEnabled(match[1], (await body(req))?.enabled));
+        if (match && req.method === 'DELETE' && !match[2]) { await currentService.remove(match[1]); return json(res, 200, { ok: true }); }
+        if (match && req.method === 'POST' && match[2]) { const input = await body(req); await currentService.feedback(match[1], input?.itemId, input?.value); return json(res, 200, { ok: true }); }
         return json(res, 404, { error: 'Not found' });
       }
       if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed' });
@@ -51,8 +67,9 @@ export function createApiServer({ service, dist = resolve('dist'), allowedOrigin
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const service = createPingService({ store: new FilePollStore(resolve('data/pinged.json')) });
-  const server = createApiServer({ service });
+  const accounts = process.env.PINGED_ACCOUNTS === '1' ? createAccounts({ directory: resolve('data') }) : null;
+  const service = accounts || createPingService({ store: new FilePollStore(resolve('data/pinged.json')) });
+  const server = createApiServer(accounts ? { accounts } : { service });
   server.listen(8787, '127.0.0.1', () => {
     console.log('Pinged local preview: http://127.0.0.1:8787');
     void service.runDue().catch(() => console.error('Scheduled check failed; retained prior state.'));

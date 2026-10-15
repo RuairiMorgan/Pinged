@@ -113,3 +113,16 @@ Estimate progress against these release outcomes; preserve weights between updat
 **Progress rubric:** **31% estimated**. Dashboard/creation-review evidence increases from 10/15 to 11/15 because a running Ping can now be edited through the UI/API with persisted, race-safe monitoring criteria. No credit changed for accounts, live sources, genuine notifications or deployment.
 
 Next: add authenticated account isolation, then genuine notification delivery and live/browser QA.
+
+## 2026-10-15 — Opt-in local accounts and isolated workspaces
+
+- Added local username/password registration, sign-in and sign-out. Passwords use salted scrypt derivation; only hashes of random session tokens are stored. Sessions expire after seven days, survive restart and are revoked on sign-out. Cookies are HttpOnly and SameSite=Strict on the existing loopback-only server.
+- Authenticated API requests resolve the account from the session, never a client-supplied account ID. Each account has its own store, active-Ping allowance, inbox and scheduled monitoring. Unauthenticated reads/writes return 401; another account's Ping IDs return 404 for edit, pause, delete and feedback.
+- Added sign-in/create-account screens, sign-out in Account, session-expiry handling and account-scoped browser draft keys. Existing single-owner preview data is left in its original workspace and is not silently imported into a new account.
+- Added bounded password-work concurrency and sign-in/registration throttling. This remains an explicitly enabled **local, single-process preview**, not production authentication: no recovery, verified email, hosted database, distributed rate limiting, HTTPS hosting or public deployment.
+
+**Verification:** all **53 Node tests pass**, including real HTTP registration/session cookies, unauthenticated denial, cross-account reads/mutations, independent slot limits, scheduler/inbox persistence, restart, password/token-at-rest checks, logout and expiry. Vite production build and `git diff --check` pass. Browser QA was attempted, but no Chromium executable was installed and browser downloads returned invalid archives; therefore the React account flow remains **browser-unverified**. RSS responses in these tests are mocked; no live source or real notification success is claimed.
+
+**Progress rubric:** **35% estimated**: accounts/isolation evidence receives 4/15 for the verified local path (previously 0/15); other credits stay unchanged, including live/browser QA at 0/10. Production accounts remain a release gate.
+
+Next: run browser QA in a browser-capable runtime, move isolated storage/session handling to production infrastructure, verify a real source, implement genuine chosen notification delivery and complete release testing.

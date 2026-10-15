@@ -4,6 +4,7 @@ import { buildSearchPlan } from "./searchPlanner.js";
 import { createDraft, normalizeAlerts, sourceReadiness, STORAGE_KEY, LEGACY_STORAGE_KEY } from "./alertDrafts.js";
 import "./style.css";
 import LivePings from "./LivePings.jsx";
+import AccountGate from "./AccountGate.jsx";
 
 const EXAMPLES = [
   { label: "Collectibles", prompt: "Find 1996 Japanese Pikachu PSA 10 cards under $500", icon: "✦" },
@@ -11,10 +12,10 @@ const EXAMPLES = [
   { label: "Opportunities", prompt: "Find new product design jobs in Seoul", icon: "↗" }
 ];
 
-function loadAlerts() {
+function loadAlerts(storageKey, allowLegacy) {
   try {
-    const current = localStorage.getItem(STORAGE_KEY);
-    const legacy = current === null ? localStorage.getItem(LEGACY_STORAGE_KEY) : null;
+    const current = localStorage.getItem(storageKey);
+    const legacy = current === null && allowLegacy ? localStorage.getItem(LEGACY_STORAGE_KEY) : null;
     return normalizeAlerts(JSON.parse(current ?? legacy ?? "[]"));
   } catch { return []; }
 }
@@ -30,10 +31,11 @@ function Arrow({ direction = "right" }) {
   return <span className="arrow" aria-hidden="true">{direction === "right" ? "→" : "↗"}</span>;
 }
 
-function App() {
+function App({ session, logout, busy }) {
+  const storageKey = session.user ? STORAGE_KEY + ':' + session.user.id : STORAGE_KEY;
   const [tab, setTab] = useState("home");
   const [monitoringDraft, setMonitoringDraft] = useState(null);
-  const [alerts, setAlerts] = useState(loadAlerts);
+  const [alerts, setAlerts] = useState(() => loadAlerts(storageKey, !session.user));
   const [query, setQuery] = useState("");
   const [preview, setPreview] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -42,9 +44,9 @@ function App() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts)); }
+    try { localStorage.setItem(storageKey, JSON.stringify(alerts)); }
     catch { setNotice("Browser storage is unavailable. Drafts may not survive a refresh."); }
-  }, [alerts]);
+  }, [alerts, storageKey]);
 
   function reviewAlert(event) {
     event.preventDefault();
@@ -72,7 +74,7 @@ function App() {
       setPreview(null);
       setSelectedIds([]);
       setEditingId(null);
-      setNotice("Draft saved on this device. Automated monitoring is not connected yet.");
+      setNotice("Idea saved on this device. Choose Set up monitoring when you’re ready.");
     } catch (reason) { setError(reason.message || "Could not save the draft."); }
   }
 
@@ -155,12 +157,12 @@ function App() {
 
 
 
-      {tab === "account" && <section className="tab-page"><span className="eyebrow">YOUR PINGED</span><h1>Account<span className="brand-period">.</span></h1><p className="tab-intro">A simple, transparent place for your preferences.</p><div className="account-grid"><div className="account-card"><span className="account-icon" aria-hidden="true">⌂</span><h2>Local preview</h2><p>Accounts and cloud sync aren't available yet. Your {alerts.length} alert {alerts.length === 1 ? "draft is" : "drafts are"} saved only in this browser.</p><span className="status-label">No account connected</span></div><div className="account-card"><span className="account-icon" aria-hidden="true">↓</span><h2>Your data, your control</h2><p>Download a copy of your saved alert drafts. No monitoring data has been collected.</p><button className="secondary-button" type="button" onClick={exportDrafts} disabled={!alerts.length}>Export my drafts <Arrow /></button></div></div></section>}
+      {tab === "account" && <section className="tab-page"><span className="eyebrow">YOUR PINGED</span><h1>Account<span className="brand-period">.</span></h1><p className="tab-intro">A simple, transparent place for your preferences.</p><div className="account-grid"><div className="account-card"><span className="account-icon" aria-hidden="true">⌂</span><h2>{session.user ? session.user.username : 'Local preview'}</h2><p>{session.user ? 'Your active Pings and inbox are stored separately for this account. Saved ideas stay in this browser, separated by account.' : 'Your saved ideas stay in this browser. This preview uses a single local workspace.'}</p><span className="status-label">{session.user ? 'Signed in · local account' : 'Local workspace'}</span>{session.user && <button className="secondary-button" disabled={busy} onClick={logout}>Sign out</button>}</div><div className="account-card"><span className="account-icon" aria-hidden="true">↓</span><h2>Your data, your control</h2><p>Download a copy of your saved ideas from this browser. Active Pings and inbox discoveries are not included in this export.</p><button className="secondary-button" type="button" onClick={exportDrafts} disabled={!alerts.length}>Export my drafts <Arrow /></button></div></div></section>}
     </main>
 
-    <footer className="site-footer"><div><Logo /><p>Stay close to what matters.</p></div><span>Local preview · Silent RSS inbox · Push and accounts pending</span></footer>
+    <footer className="site-footer"><div><Logo /><p>Stay close to what matters.</p></div><span>Local preview · Silent RSS inbox · Push pending</span></footer>
     <nav className="mobile-nav" aria-label="Mobile navigation">{[["home", "⌂", "Home"], ["inbox", "✉", "Inbox"], ["account", "◎", "Account"]].map(([id, icon, label]) => <button key={id} type="button" aria-current={tab === id ? "page" : undefined} onClick={() => { setTab(id); window.scrollTo({ top: 0, behavior: "smooth" }); }}><span aria-hidden="true">{icon}</span>{label}</button>)}</nav>
   </div>;
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+createRoot(document.getElementById("root")).render(<AccountGate>{props => <App key={props.session.user?.id || "local"} {...props} />}</AccountGate>);
