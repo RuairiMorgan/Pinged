@@ -93,3 +93,11 @@ Estimate progress against these release outcomes; preserve weights between updat
 | Suggestions, preference controls and agreed discovery experience | 5 | 0 |
 | Live/browser QA, deployment and operational readiness | 10 | 0 |
 | Total | 100 | 30 |
+
+## 2026-10-15 — Activation race safety
+
+- Fixed a pause → resume race: a check started before pausing can no longer write stale discoveries or failure/backoff metadata into a newly resumed Ping. Each enable-state transition increments an activation revision, checked before applying network results.
+- Added `tests/activationRevision.test.mjs` covering an in-flight result returned after pause/resume.
+- **Verification:** GitHub accepted the code and test commits. The new test and full suite have **not** been executed in this run; build, live feeds, browser QA and deployment remain unverified here. The previous verified 46-test/build result belongs to the preceding increment.
+- **Progress rubric:** unchanged at **30% estimated** until the regression test and full suite are run; this is a safety fix, not a newly satisfied release gate.
+- Next: run full suite/build in a checkout, verify feed reachability and browser interaction, then implement authenticated account isolation and genuine notifications.
