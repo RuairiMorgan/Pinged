@@ -1,10 +1,11 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { FEED_SOURCES, getFeedSource } from './feedSources.mjs';
 import { checkFeed } from './monitor.mjs';
 import { createPushDelivery } from './push.mjs';
 
 const INTERVAL = 15 * 60_000;
 const MAX_INTERVAL = 24 * 60 * 60_000;
+const SUGGESTION_STOP_WORDS = new Set(['about', 'after', 'again', 'could', 'first', 'from', 'have', 'into', 'latest', 'more', 'news', 'report', 'says', 'their', 'there', 'these', 'this', 'update', 'what', 'when', 'where', 'which', 'with', 'would']);
 const bad = message => { throw Object.assign(new Error(message), { status: 400 }); };
 const find = (state, id) => {
   const ping = state.pings?.find(p => p.id === id);
@@ -17,6 +18,30 @@ export function createPingService({ store, checker = checkFeed, now = Date.now, 
   if (!store?.transaction || !store?.read) throw new Error('Store required');
   let running = null;
   const push = createPushDelivery({ store, now, config: pushConfig, ownerId: pushOwner, sender: pushSender });
+  function learningView(state) {
+    const learning = state.learning || { enabled: false, profile: [] };
+    const suggestions = [];
+    if (learning.enabled) {
+      const existing = new Set((state.pings || []).flatMap(ping => ping.keyword.toLowerCase().match(/[a-z0-9]+/g) || []));
+      const counts = new Map();
+      for (const ping of state.pings || []) for (const item of ping.inbox || []) {
+        if (item.feedback !== 'useful') continue;
+        const words = new Set((item.title.toLowerCase().match(/[a-z][a-z0-9-]{4,}/g) || []).filter(word => !existing.has(word) && !SUGGESTION_STOP_WORDS.has(word)));
+        for (const word of words) {
+          const record = counts.get(word) || { count: 0, sources: new Set() };
+          record.count++; record.sources.add(item.sourceId); counts.set(word, record);
+        }
+      }
+      for (const [keyword, record] of [...counts].sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))) {
+        if (record.count < 2) continue;
+        const id = createHash('sha256').update(keyword).digest('hex').slice(0, 20);
+        if ((learning.dismissed || []).includes(id)) continue;
+        suggestions.push({ id, request: `Keep me updated on ${keyword}`, keyword, sourceIds: [...record.sources].slice(0, 3), reason: `Appeared in ${record.count} useful discoveries` });
+        if (suggestions.length === 5) break;
+      }
+    }
+    return { enabled: learning.enabled, profile: learning.profile || [], suggestions, updatedAt: learning.updatedAt || null };
+  }
   function normalizeInput(input) {
     if (!input || typeof input.request !== 'string' || !input.request.trim() || input.request.length > 1000) bad('Describe your Ping (up to 1,000 characters).');
     if (typeof input.keyword !== 'string' || !input.keyword.trim() || input.keyword.length > 120) bad('Choose an exact keyword or phrase (up to 120 characters).');
@@ -31,7 +56,7 @@ export function createPingService({ store, checker = checkFeed, now = Date.now, 
     const state = await store.read();
     return { pings: state.pings || [], sources: Object.values(FEED_SOURCES).map(({ id, name, status }) => ({ id, name, status })),
       limits: { active: 3, sourcesPerPing: 3 }, service: 'local-single-owner', notifications: push.status(state),
-      learning: state.learning || { enabled: false, profile: [] } };
+      learning: learningView(state) };
   }
   async function setLearning(enabled) {
     if (typeof enabled !== 'boolean') bad('Learning preference must be true or false.');
@@ -39,13 +64,22 @@ export function createPingService({ store, checker = checkFeed, now = Date.now, 
       state.learning ||= { enabled: false, profile: [] };
       state.learning.enabled = enabled;
       state.learning.updatedAt = new Date(now()).toISOString();
-      return state.learning;
+      return learningView(state);
     });
   }
   async function resetLearning() {
     return store.transaction(state => {
       state.learning = { enabled: false, profile: [], updatedAt: new Date(now()).toISOString() };
-      return state.learning;
+      return learningView(state);
+    });
+  }
+  async function dismissSuggestion(id) {
+    if (typeof id !== 'string' || !/^[a-f0-9]{20}$/.test(id)) bad('Invalid suggestion.');
+    return store.transaction(state => {
+      state.learning ||= { enabled: false, profile: [] };
+      state.learning.dismissed = [...new Set([...(state.learning.dismissed || []), id])].slice(-100);
+      state.learning.updatedAt = new Date(now()).toISOString();
+      return learningView(state);
     });
   }
   async function create(input) {
@@ -173,5 +207,5 @@ export function createPingService({ store, checker = checkFeed, now = Date.now, 
     })().finally(() => { running = null; });
     return running;
   }
-  return Object.freeze({ snapshot, create, update, setEnabled, remove, feedback, setLearning, resetLearning, runDue, push });
+  return Object.freeze({ snapshot, create, update, setEnabled, remove, feedback, setLearning, resetLearning, dismissSuggestion, runDue, push });
 }

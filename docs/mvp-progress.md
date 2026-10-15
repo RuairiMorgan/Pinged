@@ -154,3 +154,16 @@ Next: run browser QA in a browser-capable runtime, move isolated storage/session
 **Progress rubric:** **39% estimated**. Suggestions/preference-controls evidence increases from 0/5 to 2/5 for the persisted, account-isolated review/reset path. No credit is claimed for generated suggestions because that feature is not implemented; all other rubric values remain unchanged.
 
 Next: generate conservative reviewable suggestions without activating them, then verify the complete experience in a real browser and live-source environment.
+
+## 2026-10-15 — Evidence-based suggestions with explicit approval
+
+- Added conservative suggestion generation from repeated terms across at least two discoveries the user explicitly marked Useful. Existing Ping keywords, common filler words and one-off signals are excluded.
+- Suggestions explain their evidence, are capped at five, and can be dismissed persistently. Dismissal and suggestion data remain account-scoped.
+- Choosing Review idea only copies the proposed request into the existing review flow. It does not save, activate, change or consume an active-Ping slot; the user must still review sources and explicitly save or start it.
+- No external AI, paid integration or unverified related-interest claim was introduced.
+
+**Verification:** the complete **66-test** Node suite passes, including repeated-evidence thresholds, dismissal persistence, unchanged existing criteria and no automatic Ping creation. `npm run build` passes with Vite 5.4.21 and `git diff --check` passes. Browser interaction, live sources, actual device notification delivery and deployment remain unverified.
+
+**Progress rubric:** **41% estimated**. Suggestions/preference-controls evidence increases from 2/5 to 4/5 for the generated, explainable, dismissible and approval-gated flow. No other rubric credit changes.
+
+Next: prioritize real browser/live-source verification, production account infrastructure and deployed end-to-end QA.

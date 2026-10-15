@@ -82,7 +82,8 @@ test('interest learning is opt-in, reviewable, resettable and never changes expl
   const ping = await f.service.create(input);
   await f.service.runDue();
   await f.service.feedback(ping.id, match.id, 'useful');
-  assert.deepEqual((await f.service.snapshot()).learning, { enabled: false, profile: [] });
+  assert.equal((await f.service.snapshot()).learning.enabled, false);
+  assert.deepEqual((await f.service.snapshot()).learning.profile, []);
   await f.service.setLearning(true);
   await f.service.feedback(ping.id, match.id, 'useful');
   let state = await f.service.snapshot();
@@ -97,6 +98,30 @@ test('interest learning is opt-in, reviewable, resettable and never changes expl
   await f.service.resetLearning();
   assert.deepEqual((await f.service.snapshot()).learning.profile, []);
   assert.equal((await f.service.snapshot()).learning.enabled, false);
+});
+
+test('learned suggestions require repeated useful evidence, never activate, and can be dismissed', async t => {
+  const matches = [
+    { ...match, id: 'battery-one', title: 'Battery storage expands in Europe' },
+    { ...match, id: 'battery-two', title: 'Battery research reaches new milestone', link: 'https://example.com/two' }
+  ];
+  const f = await fixture(t, async () => ({ status: 'ok', matches }));
+  const ping = await f.service.create(input);
+  await f.service.setLearning(true);
+  await f.service.runDue();
+  await f.service.feedback(ping.id, 'battery-one', 'useful');
+  assert.deepEqual((await f.service.snapshot()).learning.suggestions, []);
+  await f.service.feedback(ping.id, 'battery-two', 'useful');
+  let state = await f.service.snapshot();
+  assert.equal(state.pings.length, 1);
+  assert.equal(state.learning.suggestions.length, 1);
+  assert.equal(state.learning.suggestions[0].keyword, 'battery');
+  assert.match(state.learning.suggestions[0].reason, /2 useful discoveries/);
+  await f.service.dismissSuggestion(state.learning.suggestions[0].id);
+  state = await f.service.snapshot();
+  assert.equal(state.learning.suggestions.length, 0);
+  assert.equal(state.pings.length, 1);
+  assert.equal(state.pings[0].keyword, 'climate');
 });
 
 test('failed source checks keep discoveries and persist backoff across restart', async t => {
